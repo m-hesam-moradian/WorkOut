@@ -5137,31 +5137,36 @@ function extractYouTubeId(url) {
 }
 
 function loadYouTubeAPI() {
-  if (ytReady || ytApiLoading || window.YT) {
-    if (window.YT && window.YT.Player) {
-      ytReady = true;
-      return Promise.resolve();
-    }
+  // If YT API is already loaded and ready, resolve immediately
+  if (window.YT && window.YT.Player) {
+    ytReady = true;
+    return Promise.resolve();
   }
-  ytApiLoading = true;
-  return new Promise((resolve) => {
-    // Set callback for API ready
-    const prevCb = window.onYouTubeIframeAPIReady;
+  // If already loading, return the existing promise
+  if (window._ytApiPromise) return window._ytApiPromise;
+
+  window._ytApiPromise = new Promise((resolve) => {
+    // Set up the callback that YouTube IFrame API calls when ready
     window.onYouTubeIframeAPIReady = function() {
-      if (prevCb) prevCb();
       ytReady = true;
       resolve();
     };
-    // Inject script
+    // Inject the API script
     if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
       const tag = document.createElement('script');
       tag.src = 'https://www.youtube.com/iframe_api';
       tag.async = true;
       document.head.appendChild(tag);
     }
-    // Timeout fallback after 5s — resolve so we don't hang
-    setTimeout(() => resolve(), 5000);
+    // Timeout after 8 seconds — resolve anyway so we don't hang forever
+    setTimeout(() => {
+      if (!ytReady) {
+        console.warn('YouTube API load timed out after 8s');
+        resolve();  // resolve anyway — playTrack will check if player exists
+      }
+    }, 8000);
   });
+  return window._ytApiPromise;
 }
 
 function initYouTubePlayer() {
@@ -5191,7 +5196,7 @@ function initYouTubePlayer() {
             isMusicPlaying = true;
             // Fetch real title on first play (if not already set)
             const track = musicPlaylist[currentTrackIdx];
-            if (track && (track.title.startsWith('YouTube · ') || track.title === 'Untitled Track')) {
+            if (track && (track.title.startsWith('YouTube · ') || track.title === 'Loading…' || track.title === 'Untitled Track')) {
               fetchYouTubeTitle(track.url).then(title => {
                 if (title) {
                   track.title = title;
@@ -5203,6 +5208,11 @@ function initYouTubePlayer() {
             updateMusicPlayPauseIcon();
             showMiniBar();
             hideVideoError();
+            // Update now-playing title with track title
+            if (track) {
+              const npTitle = document.getElementById('music-np-title');
+              if (npTitle) npTitle.textContent = track.title;
+            }
           } else if (e.data === YT.PlayerState.PAUSED) {
             isMusicPlaying = false;
             updateMusicPlayPauseIcon();
@@ -5234,17 +5244,32 @@ function initYouTubePlayer() {
 
 async function ensureYouTubePlayer() {
   if (ytPlayer && ytReady) return ytPlayer;
+  // Load the YouTube IFrame API if not already loaded
   await loadYouTubeAPI();
+  // Wait for YT.Player to be available (with retries)
+  let retries = 0;
+  while ((!window.YT || !window.YT.Player) && retries < 50) {
+    await new Promise(r => setTimeout(r, 100));
+    retries++;
+  }
+  if (!window.YT || !window.YT.Player) {
+    console.error('YouTube API did not load after 5 seconds');
+    return null;
+  }
   initYouTubePlayer();
-  // Wait a tick for player to be ready
-  await new Promise(r => setTimeout(r, 200));
-  // Start a low-frequency poll to keep play/pause icon in sync (every 1s when panel is open)
+  // Wait for the player to be ready (with retries)
+  retries = 0;
+  while ((!ytPlayer || !ytReady) && retries < 30) {
+    await new Promise(r => setTimeout(r, 100));
+    retries++;
+  }
+  // Start a low-frequency poll to keep play/pause icon in sync
   if (!window._ytSyncInterval) {
     window._ytSyncInterval = setInterval(() => {
       if (!ytPlayer || !ytPlayer.getPlayerState) return;
       try {
         const state = ytPlayer.getPlayerState();
-        const actuallyPlaying = (state === 1);  // 1 = playing
+        const actuallyPlaying = (state === 1);
         if (actuallyPlaying !== isMusicPlaying) {
           isMusicPlaying = actuallyPlaying;
           updateMusicPlayPauseIcon();
@@ -5264,25 +5289,43 @@ function playTrack(idx) {
     showToast('Not a valid YouTube link', 'warn');
     return;
   }
-  // Show loading state immediately
+  // Show loading state in now-playing title only
   showVideoLoading();
+  updateMusicUI();
   ensureYouTubePlayer().then(player => {
     if (player && player.loadVideoById) {
-      player.loadVideoById(videoId);
-      // If video is hidden, force lowest quality to save bandwidth
-      if (!videoVisible && player.setPlaybackQuality) {
-        try { player.setPlaybackQuality('small'); } catch (e) { /* ignore */ }
+      try {
+        player.loadVideoById(videoId);
+        // If video is hidden, force lowest quality to save bandwidth
+        if (!videoVisible && player.setPlaybackQuality) {
+          try { player.setPlaybackQuality('small'); } catch (e) { /* ignore */ }
+        }
+      } catch (e) {
+        console.error('loadVideoById error', e);
+        showVideoError('Could not load this video. Try another track.');
       }
-      // The onStateChange / onError handlers will update UI
     } else {
-      // Player init failed — show in-app error, do NOT open YouTube
-      showVideoError('YouTube player could not load. Check your connection and try again.');
+      // Player failed to init — show clear error
+      showVideoError('YouTube player could not load. Check your internet connection.');
     }
-    updateMusicUI();
   }).catch(err => {
     console.error('playTrack error', err);
-    showVideoError('Could not start playback. Try again.');
+    showVideoError('Could not start playback. Check your connection.');
   });
+  // Fetch real title for YouTube links (async, non-blocking)
+  if (!track.title || track.title.startsWith('YouTube · ') || track.title === 'Loading…' || track.title === 'Untitled Track') {
+    fetchYouTubeTitle(track.url).then(realTitle => {
+      if (realTitle) {
+        const t = musicPlaylist.find(t => t.url === track.url);
+        if (t) {
+          t.title = realTitle;
+          saveMusicData();
+          updateMusicUI();
+        }
+      }
+      // If fetch failed, keep existing title — don't get stuck on "Loading…"
+    }).catch(() => {});
+  }
 }
 
 function playNextTrack() {
@@ -5348,6 +5391,7 @@ function toggleVideo() {
   if (videoVisible) {
     // Move player to visible stage
     if (stage && playerEl) {
+      stage.innerHTML = '';  // clear any error content
       stage.appendChild(playerEl);
       stage.classList.add('show');
     }
@@ -5359,13 +5403,14 @@ function toggleVideo() {
     if (ytPlayer && ytPlayer.setPlaybackQuality) {
       try { ytPlayer.setPlaybackQuality('default'); } catch (e) { /* ignore */ }
     }
-    showToast('Video on — you can skip ads');
+    showToast('Video on');
   } else {
-    // Move player back to hidden host (saves screen space)
+    // Move player back to hidden host
     if (host && playerEl) {
       host.appendChild(playerEl);
     }
-    if (stage) stage.classList.remove('show');
+    stage.classList.remove('show');
+    stage.innerHTML = '';  // clear stage content
     toggleBtn.classList.remove('active');
     label.textContent = 'Show Video';
     hint.textContent = 'Audio-only mode · saves data';
@@ -5374,7 +5419,7 @@ function toggleVideo() {
     if (ytPlayer && ytPlayer.setPlaybackQuality) {
       try { ytPlayer.setPlaybackQuality('small'); } catch (e) { /* ignore */ }
     }
-    showToast('Audio only — saving data');
+    showToast('Audio only — saves data');
   }
 }
 
@@ -5487,89 +5532,84 @@ async function fetchYouTubeTitle(url) {
 }
 
 function showVideoLoading() {
+  // Just update the now-playing title to show loading state.
+  // Do NOT force videoVisible or show the video stage — respect user's toggle choice.
+  const npTitle = document.getElementById('music-np-title');
+  if (npTitle) npTitle.textContent = 'Loading…';
+  const hint = document.getElementById('video-hint');
+  if (hint) { hint.textContent = 'Loading track…'; hint.classList.add('warn'); }
+  // Only show the video stage if the user explicitly has video ON
   const stage = document.getElementById('music-video-stage');
-  if (!stage) return;
-  // Always show the stage during loading (so user sees something happening)
-  stage.classList.add('show');
-  stage.innerHTML = '<div class="music-video-stage-empty">Loading…</div>';
-  // Re-attach the player once it's ready (handled by onReady)
-  // But we moved the player element out of stage — restore after stage is visible
-  const playerEl = document.getElementById('yt-player');
-  if (playerEl && !stage.contains(playerEl)) {
-    // Move player to stage
-    stage.appendChild(playerEl);
-    videoVisible = true;  // keep visible during loading
-    const toggleBtn = document.getElementById('btn-toggle-video');
-    const label = document.getElementById('video-toggle-label');
-    const hint = document.getElementById('video-hint');
-    if (toggleBtn) toggleBtn.classList.add('active');
-    if (label) label.textContent = 'Hide Video';
-    if (hint) { hint.textContent = 'Loading track…'; hint.classList.add('warn'); }
+  if (stage && videoVisible) {
+    stage.classList.add('show');
+    // Don't overwrite stage content — the player iframe will fill it once loaded
   }
 }
 
 function showVideoError(msg) {
-  const stage = document.getElementById('music-video-stage');
-  if (!stage) {
-    showToast(msg, 'error');
-    return;
-  }
-  // Show the stage with an error message instead of the video
-  stage.classList.add('show');
-  // Save current player element if present, hide it
-  const playerEl = document.getElementById('yt-player');
-  if (playerEl && playerEl.parentElement === stage) {
-    // Move player back to hidden host so it doesn't show under error
-    document.getElementById('yt-player-host').appendChild(playerEl);
-  }
-  stage.innerHTML = `
-    <div class="music-video-error">
-      <div class="error-icon">!</div>
-      <div class="error-msg">${escapeHtml(msg)}</div>
-      <button class="error-retry-btn" id="btn-retry-track">Retry</button>
-      <button class="error-skip-btn" id="btn-error-skip">Skip to next</button>
-    </div>
-  `;
-  const retryBtn = document.getElementById('btn-retry-track');
-  if (retryBtn) retryBtn.addEventListener('click', () => {
-    if (currentTrackIdx >= 0) playTrack(currentTrackIdx);
-  });
-  const skipBtn = document.getElementById('btn-error-skip');
-  if (skipBtn) skipBtn.addEventListener('click', playNextTrack);
-  // Update hint
+  // Show error in the now-playing area, NOT by forcing the video stage visible
+  const npTitle = document.getElementById('music-np-title');
+  if (npTitle) npTitle.textContent = '⚠ ' + msg;
   const hint = document.getElementById('video-hint');
   if (hint) { hint.textContent = 'Playback error'; hint.classList.add('warn'); }
+
+  // If video IS visible, show error in the stage with retry/skip buttons
+  const stage = document.getElementById('music-video-stage');
+  if (stage && videoVisible) {
+    stage.classList.add('show');
+    const playerEl = document.getElementById('yt-player');
+    if (playerEl && playerEl.parentElement === stage) {
+      document.getElementById('yt-player-host').appendChild(playerEl);
+    }
+    stage.innerHTML = `
+      <div class="music-video-error">
+        <div class="error-icon">!</div>
+        <div class="error-msg">${escapeHtml(msg)}</div>
+        <div class="error-actions">
+          <button class="error-retry-btn" id="btn-retry-track">Retry</button>
+          <button class="error-skip-btn" id="btn-error-skip">Skip</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('btn-retry-track')?.addEventListener('click', () => {
+      if (currentTrackIdx >= 0) playTrack(currentTrackIdx);
+    });
+    document.getElementById('btn-error-skip')?.addEventListener('click', playNextTrack);
+  } else {
+    // Video is hidden — show error as a toast with action hint
+    showToast(msg + ' — tap Retry in now-playing', 'error');
+  }
 }
 
 function hideVideoError() {
-  // Called when playback actually starts successfully
   const hint = document.getElementById('video-hint');
   if (hint) {
     hint.classList.remove('warn');
     hint.textContent = videoVisible ? 'Video visible · full quality' : 'Audio-only mode · saves data';
   }
-  // If video is hidden, hide the stage too
   const stage = document.getElementById('music-video-stage');
   if (stage && !videoVisible) {
     stage.classList.remove('show');
+    // Clear any error content
+    stage.innerHTML = '';
   }
 }
 
 function addTrack(url) {
   const trimmed = (url || '').trim();
   if (!trimmed) { showToast('Paste a URL first', 'warn'); return; }
-  // Generate a placeholder title from the URL — will be replaced by real YouTube title once fetched
-  let title = 'Loading…';
+  // Generate a placeholder title — will be replaced by real YouTube title once fetched
   const ytId = extractYouTubeId(trimmed);
-  if (!ytId) {
-    if (trimmed.includes('telegram')) title = 'Telegram Music Link';
-    else {
-      // Use domain as title for non-YouTube links
-      try {
-        const u = new URL(trimmed.startsWith('http') ? trimmed : 'https://' + trimmed);
-        title = u.hostname.replace('www.', '');
-      } catch (e) { title = 'Custom Track'; }
-    }
+  let title;
+  if (ytId) {
+    title = `YouTube · ${ytId}`;  // placeholder, will be replaced by real title
+  } else if (trimmed.includes('telegram')) {
+    title = 'Telegram Music Link';
+  } else {
+    try {
+      const u = new URL(trimmed.startsWith('http') ? trimmed : 'https://' + trimmed);
+      title = u.hostname.replace('www.', '');
+    } catch (e) { title = 'Custom Track'; }
   }
   musicPlaylist.push({ title, url: trimmed });
   saveMusicData();
@@ -5580,24 +5620,14 @@ function addTrack(url) {
   // Fetch real title for YouTube links (async, replaces placeholder once it arrives)
   if (ytId) {
     fetchYouTubeTitle(trimmed).then(realTitle => {
-      if (realTitle) {
-        // Find the track we just added (in case playlist changed)
-        const track = musicPlaylist.find(t => t.url === trimmed);
-        if (track) {
-          track.title = realTitle;
-          saveMusicData();
-          updateMusicUI();
-        }
-      } else {
-        // Fallback: show video ID if oEmbed failed
-        const track = musicPlaylist.find(t => t.url === trimmed);
-        if (track && track.title === 'Loading…') {
-          track.title = `YouTube · ${ytId}`;
-          saveMusicData();
-          updateMusicUI();
-        }
+      const track = musicPlaylist.find(t => t.url === trimmed);
+      if (track && realTitle) {
+        track.title = realTitle;
+        saveMusicData();
+        updateMusicUI();
       }
-    });
+      // If fetch failed, keep the "YouTube · {id}" placeholder — don't get stuck
+    }).catch(() => {});
   }
 }
 
