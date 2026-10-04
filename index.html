@@ -1181,17 +1181,23 @@ input, textarea, select { font-family: inherit; }
   font-weight: 700;
 }
 
-/* YT player host — hidden but functional */
+/* Keep the YouTube iframe mounted while positioning it over the video stage. */
 #yt-player-host {
   position: fixed;
-  width: 1px;
-  height: 1px;
-  bottom: -10px;
-  right: -10px;
+  width: 480px;
+  height: 270px;
+  top: 0;
+  left: -10000px;
   overflow: hidden;
   opacity: 0;
   pointer-events: none;
-  z-index: -1;
+  z-index: 350;
+}
+#yt-player-host #yt-player,
+#yt-player-host iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 /* Video toggle button + hint */
@@ -2643,11 +2649,11 @@ input, textarea, select { font-family: inherit; }
         </button>
       </div>
       <div class="music-video-toggle-row">
-        <button class="music-video-toggle" id="btn-toggle-video" aria-label="Toggle video">
+        <button class="music-video-toggle" id="btn-toggle-video" aria-label="Video Off" aria-pressed="false">
           <svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 9 L21 7 L21 17 L17 15 Z"/></svg>
           <span id="video-toggle-label">Show Video</span>
         </button>
-        <span class="music-video-hint" id="video-hint">Audio-only mode · saves data</span>
+        <span class="music-video-hint" id="video-hint">Video hidden · audio continues</span>
       </div>
     </div>
 
@@ -2678,7 +2684,7 @@ input, textarea, select { font-family: inherit; }
   </div>
 </div>
 
-<!-- Hidden YouTube IFrame player host -->
+<!-- Persistent YouTube iframe; positioned over the video stage when visible. -->
 <div id="yt-player-host"><div id="yt-player"></div></div>
 
 <!-- Mini now-playing bar (shown when music is playing during workout) -->
@@ -5084,24 +5090,29 @@ const MUSIC_KEY = 'cb_music_v2';
 let musicPlaylist = [];
 let currentTrackIdx = -1;
 let ytPlayer = null;
-let ytReady = false;
-let ytApiLoading = false;
+let ytApiReady = false;
+let ytPlayerReady = false;
+let ytPlayerPromise = null;
 let isMusicPlaying = false;
-let videoVisible = false;  // false = audio-only (hidden, low quality), true = video shown
+let videoVisible = false;  // false = video hidden, true = video shown
 
 // Default motivational playlist (well-known YouTube mixes — user can replace)
 const DEFAULT_MUSIC = [
-  { title: 'Gym Motivation Music Mix', url: 'https://www.youtube.com/watch?v=B2FP2BKTSC0' },
-  { title: 'Workout Music 2024 Hype', url: 'https://www.youtube.com/watch?v=PE0MBafyK0M' },
-  { title: 'Beast Mode Workout Music', url: 'https://www.youtube.com/watch?v=8oCkq-FQfTo' },
+  { title: 'Workout Music', url: 'https://www.youtube.com/watch?v=D2CKOIiabfg&t' },
 ];
+const LEGACY_DEFAULT_MUSIC_IDS = ['B2FP2BKTSC0', 'PE0MBafyK0M', '8oCkq-FQfTo'];
 
 function loadMusicData() {
   try {
     const raw = localStorage.getItem(MUSIC_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) musicPlaylist = parsed;
+      if (Array.isArray(parsed)) {
+        const isLegacyDefaults = parsed.length === LEGACY_DEFAULT_MUSIC_IDS.length &&
+          parsed.every(track => track && LEGACY_DEFAULT_MUSIC_IDS.includes(extractYouTubeId(track.url)));
+        musicPlaylist = isLegacyDefaults ? DEFAULT_MUSIC.slice() : parsed;
+        if (isLegacyDefaults) saveMusicData();
+      }
     } else {
       // First run — seed with defaults
       musicPlaylist = DEFAULT_MUSIC.slice();
@@ -5137,47 +5148,53 @@ function extractYouTubeId(url) {
 }
 
 function loadYouTubeAPI() {
-  // If YT API is already loaded and ready, resolve immediately
+  if (ytApiReady && window.YT && window.YT.Player) return Promise.resolve();
   if (window.YT && window.YT.Player) {
-    ytReady = true;
+    ytApiReady = true;
     return Promise.resolve();
   }
-  // If already loading, return the existing promise
   if (window._ytApiPromise) return window._ytApiPromise;
 
-  window._ytApiPromise = new Promise((resolve) => {
-    // Set up the callback that YouTube IFrame API calls when ready
-    window.onYouTubeIframeAPIReady = function() {
-      ytReady = true;
-      resolve();
+  window._ytApiPromise = new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (error) reject(error);
+      else {
+        ytApiReady = true;
+        resolve();
+      }
     };
-    // Inject the API script
-    if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
-      const tag = document.createElement('script');
+    const previousCallback = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = function() {
+      if (typeof previousCallback === 'function') previousCallback();
+      finish();
+    };
+    const existingScript = document.querySelector('script[src*="youtube.com/iframe_api"]');
+    const tag = existingScript || document.createElement('script');
+    const timeout = setTimeout(() => finish(new Error('YouTube player took too long to load.')), 12000);
+    tag.addEventListener('error', () => finish(new Error('Could not load the YouTube player.')),{ once: true });
+    if (!existingScript) {
       tag.src = 'https://www.youtube.com/iframe_api';
       tag.async = true;
       document.head.appendChild(tag);
     }
-    // Timeout after 8 seconds — resolve anyway so we don't hang forever
-    setTimeout(() => {
-      if (!ytReady) {
-        console.warn('YouTube API load timed out after 8s');
-        resolve();  // resolve anyway — playTrack will check if player exists
-      }
-    }, 8000);
   });
+  window._ytApiPromise.catch(() => { window._ytApiPromise = null; });
   return window._ytApiPromise;
 }
 
 function initYouTubePlayer() {
-  if (ytPlayer) return;
-  if (!window.YT || !window.YT.Player) return;
+  if (ytPlayerPromise) return ytPlayerPromise;
+  ytPlayerPromise = loadYouTubeAPI().then(() => new Promise((resolve, reject) => {
   const host = document.getElementById('yt-player');
-  if (!host) return;
+  if (!host) throw new Error('YouTube player container is missing.');
   try {
     ytPlayer = new YT.Player('yt-player', {
-      height: '1',
-      width: '1',
+      height: '270',
+      width: '480',
       videoId: '',
       playerVars: {
         autoplay: 0,
@@ -5188,7 +5205,10 @@ function initYouTubePlayer() {
         rel: 0,  // don't show related videos at end
       },
       events: {
-        onReady: () => { ytReady = true; },
+        onReady: () => {
+          ytPlayerReady = true;
+          resolve(ytPlayer);
+        },
         onStateChange: (e) => {
           if (e.data === YT.PlayerState.ENDED) {
             playNextTrack();
@@ -5234,35 +5254,27 @@ function initYouTubePlayer() {
           showVideoError(msg);
           isMusicPlaying = false;
           updateMusicPlayPauseIcon();
+          if (!ytPlayerReady) reject(new Error(msg));
         },
       },
     });
   } catch (e) {
     console.error('YT player init fail', e);
+    reject(e);
   }
+  setTimeout(() => {
+    if (!ytPlayerReady) reject(new Error('YouTube player did not become ready.'));
+  }, 12000);
+  })).catch(error => {
+    ytPlayerPromise = null;
+    throw error;
+  });
+  return ytPlayerPromise;
 }
 
 async function ensureYouTubePlayer() {
-  if (ytPlayer && ytReady) return ytPlayer;
-  // Load the YouTube IFrame API if not already loaded
-  await loadYouTubeAPI();
-  // Wait for YT.Player to be available (with retries)
-  let retries = 0;
-  while ((!window.YT || !window.YT.Player) && retries < 50) {
-    await new Promise(r => setTimeout(r, 100));
-    retries++;
-  }
-  if (!window.YT || !window.YT.Player) {
-    console.error('YouTube API did not load after 5 seconds');
-    return null;
-  }
-  initYouTubePlayer();
-  // Wait for the player to be ready (with retries)
-  retries = 0;
-  while ((!ytPlayer || !ytReady) && retries < 30) {
-    await new Promise(r => setTimeout(r, 100));
-    retries++;
-  }
+  if (ytPlayer && ytPlayerReady) return ytPlayer;
+  await initYouTubePlayer();
   // Start a low-frequency poll to keep play/pause icon in sync
   if (!window._ytSyncInterval) {
     window._ytSyncInterval = setInterval(() => {
@@ -5280,6 +5292,33 @@ async function ensureYouTubePlayer() {
   return ytPlayer;
 }
 
+function primeYouTubePlayer() {
+  ensureYouTubePlayer().catch(error => console.warn('YouTube player prewarm failed', error));
+}
+
+function positionYouTubePlayer() {
+  const host = document.getElementById('yt-player-host');
+  const stage = document.getElementById('music-video-stage');
+  const panel = document.getElementById('music-panel');
+  if (!host || !stage || !panel) return;
+
+  if (!videoVisible || !panel.classList.contains('show') || !stage.classList.contains('show') || stage.querySelector('.music-video-error')) {
+    host.style.left = '-10000px';
+    host.style.top = '0';
+    host.style.opacity = '0';
+    host.style.pointerEvents = 'none';
+    return;
+  }
+
+  const rect = stage.getBoundingClientRect();
+  host.style.left = `${rect.left}px`;
+  host.style.top = `${rect.top}px`;
+  host.style.width = `${rect.width}px`;
+  host.style.height = `${rect.height}px`;
+  host.style.opacity = '1';
+  host.style.pointerEvents = 'auto';
+}
+
 function playTrack(idx) {
   if (idx < 0 || idx >= musicPlaylist.length) return;
   currentTrackIdx = idx;
@@ -5295,22 +5334,21 @@ function playTrack(idx) {
   ensureYouTubePlayer().then(player => {
     if (player && player.loadVideoById) {
       try {
-        player.loadVideoById(videoId);
-        // If video is hidden, force lowest quality to save bandwidth
-        if (!videoVisible && player.setPlaybackQuality) {
-          try { player.setPlaybackQuality('small'); } catch (e) { /* ignore */ }
+        player.loadVideoById({ videoId, suggestedQuality: 'medium' });
+        player.playVideo();
+        if (player.setPlaybackQuality) {
+          try { player.setPlaybackQuality('medium'); } catch (e) { /* YouTube may ignore quality requests. */ }
         }
       } catch (e) {
         console.error('loadVideoById error', e);
         showVideoError('Could not load this video. Try another track.');
       }
     } else {
-      // Player failed to init — show clear error
-      showVideoError('YouTube player could not load. Check your internet connection.');
+      showVideoError('YouTube player is unavailable. Check your connection, then retry.');
     }
   }).catch(err => {
     console.error('playTrack error', err);
-    showVideoError('Could not start playback. Check your connection.');
+    showVideoError(err.message || 'Could not start playback. Check your connection.');
   });
   // Fetch real title for YouTube links (async, non-blocking)
   if (!track.title || track.title.startsWith('YouTube · ') || track.title === 'Loading…' || track.title === 'Untitled Track') {
@@ -5380,8 +5418,6 @@ function togglePlayPause() {
 function toggleVideo() {
   videoVisible = !videoVisible;
   const stage = document.getElementById('music-video-stage');
-  const host = document.getElementById('yt-player-host');
-  const playerEl = document.getElementById('yt-player');
   const toggleBtn = document.getElementById('btn-toggle-video');
   const label = document.getElementById('video-toggle-label');
   const hint = document.getElementById('video-hint');
@@ -5389,38 +5425,28 @@ function toggleVideo() {
   if (!toggleBtn || !label || !hint) return;
 
   if (videoVisible) {
-    // Move player to visible stage
-    if (stage && playerEl) {
-      stage.innerHTML = '';  // clear any error content
-      stage.appendChild(playerEl);
+    if (stage) {
+      stage.innerHTML = '';
       stage.classList.add('show');
     }
     toggleBtn.classList.add('active');
-    label.textContent = 'Hide Video';
-    hint.textContent = 'Video visible · full quality';
+    toggleBtn.setAttribute('aria-pressed', 'true');
+    toggleBtn.setAttribute('aria-label', 'Video On');
+    label.textContent = 'Video On';
+    hint.textContent = 'Video visible · 360p requested';
     hint.classList.remove('warn');
-    // Set playback quality to default (auto)
-    if (ytPlayer && ytPlayer.setPlaybackQuality) {
-      try { ytPlayer.setPlaybackQuality('default'); } catch (e) { /* ignore */ }
-    }
     showToast('Video on');
   } else {
-    // Move player back to hidden host
-    if (host && playerEl) {
-      host.appendChild(playerEl);
-    }
-    stage.classList.remove('show');
-    stage.innerHTML = '';  // clear stage content
+    if (stage) stage.classList.remove('show');
     toggleBtn.classList.remove('active');
-    label.textContent = 'Show Video';
-    hint.textContent = 'Audio-only mode · saves data';
+    toggleBtn.setAttribute('aria-pressed', 'false');
+    toggleBtn.setAttribute('aria-label', 'Video Off');
+    label.textContent = 'Video Off';
+    hint.textContent = 'Video hidden · audio continues';
     hint.classList.remove('warn');
-    // Set playback quality to lowest to save bandwidth
-    if (ytPlayer && ytPlayer.setPlaybackQuality) {
-      try { ytPlayer.setPlaybackQuality('small'); } catch (e) { /* ignore */ }
-    }
-    showToast('Audio only — saves data');
+    showToast('Video hidden');
   }
+  positionYouTubePlayer();
 }
 
 function updateMusicPlayPauseIcon() {
@@ -5536,31 +5562,24 @@ function showVideoLoading() {
   // Do NOT force videoVisible or show the video stage — respect user's toggle choice.
   const npTitle = document.getElementById('music-np-title');
   if (npTitle) npTitle.textContent = 'Loading…';
-  const hint = document.getElementById('video-hint');
-  if (hint) { hint.textContent = 'Loading track…'; hint.classList.add('warn'); }
   // Only show the video stage if the user explicitly has video ON
   const stage = document.getElementById('music-video-stage');
   if (stage && videoVisible) {
     stage.classList.add('show');
     // Don't overwrite stage content — the player iframe will fill it once loaded
   }
+  positionYouTubePlayer();
 }
 
 function showVideoError(msg) {
   // Show error in the now-playing area, NOT by forcing the video stage visible
   const npTitle = document.getElementById('music-np-title');
   if (npTitle) npTitle.textContent = '⚠ ' + msg;
-  const hint = document.getElementById('video-hint');
-  if (hint) { hint.textContent = 'Playback error'; hint.classList.add('warn'); }
 
   // If video IS visible, show error in the stage with retry/skip buttons
   const stage = document.getElementById('music-video-stage');
   if (stage && videoVisible) {
     stage.classList.add('show');
-    const playerEl = document.getElementById('yt-player');
-    if (playerEl && playerEl.parentElement === stage) {
-      document.getElementById('yt-player-host').appendChild(playerEl);
-    }
     stage.innerHTML = `
       <div class="music-video-error">
         <div class="error-icon">!</div>
@@ -5579,20 +5598,16 @@ function showVideoError(msg) {
     // Video is hidden — show error as a toast with action hint
     showToast(msg + ' — tap Retry in now-playing', 'error');
   }
+  positionYouTubePlayer();
 }
 
 function hideVideoError() {
-  const hint = document.getElementById('video-hint');
-  if (hint) {
-    hint.classList.remove('warn');
-    hint.textContent = videoVisible ? 'Video visible · full quality' : 'Audio-only mode · saves data';
-  }
   const stage = document.getElementById('music-video-stage');
-  if (stage && !videoVisible) {
-    stage.classList.remove('show');
-    // Clear any error content
+  if (stage) {
     stage.innerHTML = '';
+    stage.classList.toggle('show', videoVisible);
   }
+  positionYouTubePlayer();
 }
 
 function addTrack(url) {
@@ -5651,10 +5666,13 @@ function removeTrack(idx) {
 function openMusicPanel() {
   initAudio(); // unlock audio context on user gesture
   document.getElementById('music-panel').classList.add('show');
+  if (videoVisible) document.getElementById('music-video-stage').classList.add('show');
+  positionYouTubePlayer();
   updateMusicUI();
 }
 function closeMusicPanel() {
   document.getElementById('music-panel').classList.remove('show');
+  positionYouTubePlayer();
 }
 
 /* ============================================================
@@ -5874,12 +5892,16 @@ function init() {
 
   // Music player
   loadMusicData();
+  primeYouTubePlayer();
+  document.getElementById('btn-toggle-video').querySelector('#video-toggle-label').textContent = 'Video Off';
   document.getElementById('btn-music-top').addEventListener('click', openMusicPanel);
   document.getElementById('btn-close-music').addEventListener('click', closeMusicPanel);
   document.getElementById('btn-music-play').addEventListener('click', togglePlayPause);
   document.getElementById('btn-music-next').addEventListener('click', playNextTrack);
   document.getElementById('btn-music-prev').addEventListener('click', playPrevTrack);
   document.getElementById('btn-toggle-video').addEventListener('click', toggleVideo);
+  window.addEventListener('resize', positionYouTubePlayer);
+  window.addEventListener('scroll', positionYouTubePlayer, true);
   document.getElementById('btn-music-add').addEventListener('click', () => {
     const input = document.getElementById('music-add-input');
     addTrack(input.value);
