@@ -1194,6 +1194,80 @@ input, textarea, select { font-family: inherit; }
   z-index: -1;
 }
 
+/* Video toggle button + hint */
+.music-video-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.music-video-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 0;
+  cursor: pointer;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+  background: linear-gradient(145deg, var(--c-surface-2), var(--c-surface));
+  box-shadow: var(--shadow-out-dark-sm), var(--shadow-out-light-sm);
+  border-radius: 8px;
+  transition: color .15s, transform .1s;
+}
+.music-video-toggle:hover { color: var(--c-accent-bright); }
+.music-video-toggle:active { transform: scale(0.96); }
+.music-video-toggle svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.music-video-toggle.active {
+  color: #0a141a;
+  background: linear-gradient(145deg, var(--c-accent-bright), var(--c-accent));
+  box-shadow: 0 0 10px var(--c-accent-glow);
+}
+.music-video-hint {
+  font-size: 10px;
+  color: var(--c-text-faint);
+  letter-spacing: 0.06em;
+  font-style: italic;
+}
+.music-video-hint.warn { color: var(--c-warn); }
+
+/* Video stage — visible when user wants to see the video */
+.music-video-stage {
+  margin: 0 12px 12px 12px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: var(--shadow-out-dark-sm), var(--shadow-out-light-sm);
+  display: none;
+  aspect-ratio: 16 / 9;
+  position: relative;
+}
+.music-video-stage.show {
+  display: block;
+}
+.music-video-stage #yt-player {
+  width: 100%;
+  height: 100%;
+}
+.music-video-stage-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--c-text-faint);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 20px;
+}
+
 /* ============ ACTIVE WORKOUT ============ */
 .workout-progress-bar {
   height: 4px;
@@ -2517,6 +2591,17 @@ input, textarea, select { font-family: inherit; }
           <svg viewBox="0 0 24 24"><path d="M5 5 L15 12 L5 19 Z" fill="currentColor" stroke="none"/><path d="M17 5 L17 19"/></svg>
         </button>
       </div>
+      <div class="music-video-toggle-row">
+        <button class="music-video-toggle" id="btn-toggle-video" aria-label="Toggle video">
+          <svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 9 L21 7 L21 17 L17 15 Z"/></svg>
+          <span id="video-toggle-label">Show Video</span>
+        </button>
+        <span class="music-video-hint" id="video-hint">Audio-only mode · saves data</span>
+      </div>
+    </div>
+
+    <div class="music-video-stage" id="music-video-stage">
+      <!-- YouTube player moves here when video is visible -->
     </div>
 
     <div class="music-track-list-wrap">
@@ -4951,6 +5036,7 @@ let ytPlayer = null;
 let ytReady = false;
 let ytApiLoading = false;
 let isMusicPlaying = false;
+let videoVisible = false;  // false = audio-only (hidden, low quality), true = video shown
 
 // Default motivational playlist (well-known YouTube mixes — user can replace)
 const DEFAULT_MUSIC = [
@@ -5091,6 +5177,10 @@ function playTrack(idx) {
   ensureYouTubePlayer().then(player => {
     if (player && player.loadVideoById) {
       player.loadVideoById(videoId);
+      // If video is hidden, force lowest quality to save bandwidth
+      if (!videoVisible && player.setPlaybackQuality) {
+        try { player.setPlaybackQuality('small'); } catch (e) { /* ignore */ }
+      }
       // The onStateChange handler will update UI
     } else {
       // Fallback — open in new tab
@@ -5129,6 +5219,50 @@ function togglePlayPause() {
     } else {
       ytPlayer.playVideo();
     }
+  }
+}
+
+function toggleVideo() {
+  videoVisible = !videoVisible;
+  const stage = document.getElementById('music-video-stage');
+  const host = document.getElementById('yt-player-host');
+  const playerEl = document.getElementById('yt-player');
+  const toggleBtn = document.getElementById('btn-toggle-video');
+  const label = document.getElementById('video-toggle-label');
+  const hint = document.getElementById('video-hint');
+
+  if (!toggleBtn || !label || !hint) return;
+
+  if (videoVisible) {
+    // Move player to visible stage
+    if (stage && playerEl) {
+      stage.appendChild(playerEl);
+      stage.classList.add('show');
+    }
+    toggleBtn.classList.add('active');
+    label.textContent = 'Hide Video';
+    hint.textContent = 'Video visible · full quality';
+    hint.classList.remove('warn');
+    // Set playback quality to default (auto)
+    if (ytPlayer && ytPlayer.setPlaybackQuality) {
+      try { ytPlayer.setPlaybackQuality('default'); } catch (e) { /* ignore */ }
+    }
+    showToast('Video on — you can skip ads');
+  } else {
+    // Move player back to hidden host (saves screen space)
+    if (host && playerEl) {
+      host.appendChild(playerEl);
+    }
+    if (stage) stage.classList.remove('show');
+    toggleBtn.classList.remove('active');
+    label.textContent = 'Show Video';
+    hint.textContent = 'Audio-only mode · saves data';
+    hint.classList.remove('warn');
+    // Set playback quality to lowest to save bandwidth
+    if (ytPlayer && ytPlayer.setPlaybackQuality) {
+      try { ytPlayer.setPlaybackQuality('small'); } catch (e) { /* ignore */ }
+    }
+    showToast('Audio only — saving data');
   }
 }
 
@@ -5489,6 +5623,7 @@ function init() {
   document.getElementById('btn-music-play').addEventListener('click', togglePlayPause);
   document.getElementById('btn-music-next').addEventListener('click', playNextTrack);
   document.getElementById('btn-music-prev').addEventListener('click', playPrevTrack);
+  document.getElementById('btn-toggle-video').addEventListener('click', toggleVideo);
   document.getElementById('btn-music-add').addEventListener('click', () => {
     const input = document.getElementById('music-add-input');
     addTrack(input.value);
