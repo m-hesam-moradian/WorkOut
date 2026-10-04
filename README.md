@@ -1,267 +1,388 @@
-# 🏋️ CALISTHENICS BULK
+<div align="center">
 
-> A polished, mobile-first personal workout application with set-by-set guidance, rest timers, history, music, and a fully editable plan. No backend, no login, no internet required — all data stored locally on your device.
+<img src="assets/banner.svg" alt="TEMPO — Your workout. Your tempo." width="100%">
 
-<p align="center">
-  <strong>Single File</strong> · 166 KB &nbsp;|&nbsp;
-  <strong>Storage</strong> · localStorage &nbsp;|&nbsp;
-  <strong>Offline</strong> · 100%
-</p>
+<br>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/HTML-vanilla-4FD1C7?style=for-the-badge&logo=html5&logoColor=white" alt="HTML">
-  <img src="https://img.shields.io/badge/CSS-neumorphic-243240?style=for-the-badge&logo=css3&logoColor=white" alt="CSS">
-  <img src="https://img.shields.io/badge/JS-vanilla-F6A623?style=for-the-badge&logo=javascript&logoColor=white" alt="JS">
-  <img src="https://img.shields.io/badge/Storage-localStorage-5EEAD4?style=for-the-badge&logo=googlesheets&logoColor=white" alt="localStorage">
-</p>
+<img src="https://img.shields.io/badge/HTML-vanilla-4FD1C7?style=for-the-badge&labelColor=1a242c&logo=html5&logoColor=white" alt="HTML">
+<img src="https://img.shields.io/badge/CSS-neumorphic-5EEAD4?style=for-the-badge&labelColor=1a242c&logo=css3&logoColor=white" alt="CSS">
+<img src="https://img.shields.io/badge/JS-vanilla-F6A623?style=for-the-badge&labelColor=1a242c&logo=javascript&logoColor=white" alt="JS">
+<img src="https://img.shields.io/badge/PWA-installable-A78BFA?style=for-the-badge&labelColor=1a242c&logo=pwa&logoColor=white" alt="PWA">
+<img src="https://img.shields.io/badge/Offline-100%25-34D399?style=for-the-badge&labelColor=1a242c" alt="Offline">
+<img src="https://img.shields.io/badge/Accounts-0-EF5350?style=for-the-badge&labelColor=1a242c" alt="Zero accounts">
 
----
+### A tiny coach that lives in your browser.
+**It counts your sets. It nags you to rest. It plays your hype music. It never asks you to log in.**
 
-## 📑 Table of Contents
+[**🚀 Quick Start**](#-quick-start) · [**✨ Features**](#-whats-inside) · [**📋 Bring Your Plan**](#-bring-your-own-plan) · [**💾 Your Data**](#-where-does-my-data-live) · [**🙋 FAQ**](#-faq-aka-questions-youre-about-to-ask)
 
-- [Overview](#-overview)
-- [Features](#-features)
-- [Weekly Schedule](#-weekly-schedule)
-- [Quick Start](#-quick-start)
-- [How to Use](#-how-to-use)
-- [Data Storage](#-data-storage)
-- [Customization](#-customization)
-- [File Location](#-file-location)
-- [Browser Support](#-browser-support)
-- [Privacy](#-privacy)
-- [License](#-license)
+</div>
 
----
+<br>
 
-## 📖 Overview
+## 👀 Sneak peek
 
-**Calisthenics Bulk** is a single-file workout tracker built for mobile-first use. It preserves a 5-day calisthenics program (Saturday → Wednesday training, Thursday backup, Friday recovery) with the original exercises, skill progressions, and Cindy AMRAP challenge — and wraps it in a guided, set-by-set workout experience with:
+<div align="center">
+  <img src="assets/preview.svg" alt="TEMPO screens: dashboard, rest timer, history" width="100%">
+  <br>
+  <sub>Dark, soft, a little bit squishy-looking. Neumorphism, but make it gym.</sub>
+</div>
 
-- Rest timers with beep + vibration
-- Per-set reps and duration history
-- In-app YouTube music player
-- Media link attachments per exercise (form videos, images)
-- JSON plan sharing between users
-- Smart Thursday backup that auto-detects missed workouts
+<br>
 
-Everything runs locally in your browser. **No backend, no database, no login, no internet connection required** after first load. Your profile, workout plan, history, music playlist, and active workout state all persist in `localStorage` — so they remain tomorrow, next week, even after restarting your phone.
+## 🤔 What even is this?
 
----
+**TEMPO is one HTML file** that turns any workout plan into a guided, set-by-set experience.
 
-## ✨ Features
+You bring the plan *(or use the starter)*. TEMPO brings the **timers**, the **beep**, the **history**, and the **beats**.
 
-### 🎯 Set-by-Set Workout Mode
-The app coaches you through every set: `Start Set` → timer counts up → enter reps → `Done` → rest timer auto-starts with beep + vibration → next set prompt. Per-set reps and durations are stored separately — never collapsed into a single total.
+No backend. No framework. No build step. No "we've updated our privacy policy" emails. Just you, your phone, and a rest timer that is **extremely** judgmental about you scrolling Instagram between sets.
 
-### ⏱️ Rest Timer Controls
-`+15s` / `-15s` / `Pause` / `Skip` — adjustable per set. Beep via Web Audio API + `navigator.vibrate()` when rest completes. Set timer never starts automatically — only when you press Start Set.
-
-### 📊 Per-Set Reps & Duration
-Every individual set is stored separately. `Pull-ups: 7 / 6 / 5` with per-set durations (`18s / 16s / 15s`) so you can track fatigue across sets.
-
-### 🔄 Resume After Refresh
-Refresh mid-workout? No problem. The active workout state saves continuously. On reopen, a yellow "Workout in progress" banner offers **Resume** or **Discard**. `beforeunload` warns you if you try to leave.
-
-### 🏆 Cindy 20-min AMRAP
-Tuesday's Cindy workout gets its own flow: 20-minute countdown, +/− round counter, finish-early option, saved as a special Cindy entry in history. Scheme: `5 pull-ups · 10 push-ups · 15 air squats` per round.
-
-### 🎯 Skill Tracking
-Handstand and muscle-up progression stay skill-based (not forced into hypertrophy sets). Record practice time, milestone stage, and notes. Wednesday lets you pick ONE skill milestone to focus on.
-
-### ✏️ Fully Editable Plan
-Add / remove / rename / reorder exercises. Change sets, rest duration, exercise type (`strength` / `timed` / `skill`). Edit workout names per day. Stable exercise IDs keep history intact even when names change.
-
-### 🎵 In-App Music Player
-Paste any YouTube link — it plays inside the app via YouTube IFrame API. Pre-loaded with motivational gym mixes. Play / pause / skip / add / remove. Mini now-playing bar floats during workouts.
-
-### 🔗 Media Links Per Exercise
-Each exercise supports YouTube / image / video / link URLs. Rendered as tappable chips in the day overview and the active workout "Get Ready" screen — so you can pull up a form video before each set.
-
-### 📤 JSON Plan Sharing
-Download your workout plan as a portable JSON file — contains ONLY the program (no personal data). Send it to a friend; they Import Plan on their device. Profile and history stay completely separate.
-
-### 🤖 Thursday Smart Backup
-Thursday auto-detects which workouts you missed this week and suggests the first missed day as the primary catch-up. Other missed days appear as smaller chips. Or tap `Just Rest Today` to log recovery instead.
-
-### 🗑️ Full Backup / Reset
-Export everything (profile + plan + history + settings + active workout) as a single JSON backup. Import to restore on any device. Reset Application wipes everything with a confirmation modal.
-
----
-
-## 📅 Weekly Schedule
-
-The default program — fully editable in the Plan tab.
-
-| Day | Workout | Details |
-|-----|---------|---------|
-| **Sat** | Push + Handstand | 4 strength + 1 skill · 5 exercises · 13 sets |
-| **Sun** | Pull + Muscle-up | 5 strength + 1 skill · 6 exercises · 16 sets |
-| **Mon** | Legs + Core | 6 exercises · 18 sets · includes timed Plank |
-| **Tue** | Cindy 20-min AMRAP | 5 pull-ups · 10 push-ups · 15 air squats per round |
-| **Wed** | Full Body + Skill | 6 strength + 1 skill milestone · 7 exercises |
-| **Thu** | Backup / Rest | Smart catch-up day · auto-detects missed workouts |
-| **Fri** | Free / Recovery | No training · recovery is when adaptation happens |
-
----
+<br>
 
 ## 🚀 Quick Start
 
-Get up and running in under 30 seconds.
+> **Time required:** about 30 seconds. We timed it. (We have a timer. It's a whole thing.)
 
-### 1. Open the file
-Double-click `calisthenics_bulk_tracker.html` or drag it into any modern browser (Chrome, Firefox, Safari, Edge). Works on desktop, tablet, and phone.
+| | Step | What happens |
+|:-:|------|--------------|
+| **1** | 📂 Open `tempo.html` in any browser | Chrome, Safari, Firefox, Edge. Phone or desktop. |
+| **2** | ✍️ Type your name in the popup | That's the entire signup. Yes, really. |
+| **3** | ▶️ Tap **Start Workout** → **Start Set** | The coaching begins. |
+| **4** | 💪 Do the reps → tap **Done** | The rest timer starts counting. |
+| **5** | 🔔 *Beep.* | Rest is over. Go again. |
 
-### 2. Enter your name
-A welcome popup appears on top of the dashboard. Type your name and tap **Continue**. The popup disappears, and the dashboard is ready. You will never be asked again unless you reset the app.
+That's it. You're training. 🎉
 
-### 3. Tap today's workout
-The Home tab shows today's workout card with a glowing **Start Workout** button. Tap it to enter workout mode.
+<br>
 
-### 4. Follow the coach
-Press **Start Set** → do the reps → enter the number → tap **Done** → rest timer auto-starts with a beep → next set appears. Repeat for every set of every exercise.
+## ✨ What's inside
 
-### 5. Finish & review
-When all sets are done, a completion screen shows total duration, sets, reps, and your best set. Tap **Done** → returns to Home. The workout is now in your History.
+<table>
+<tr>
+<td width="50%" valign="top">
 
----
+### ⏱️ Set-by-set coaching
+Start Set → timer → reps → Done → rest → next set. TEMPO walks you through every single one, so your brain can focus on the heavy thing instead of the counting.
 
-## 📱 How to Use
+</td>
+<td width="50%" valign="top">
 
-Five main areas — navigate via the bottom tab bar.
+### 🔔 Rest timer + beep
+Countdown with **+15 / −15 / Pause / Skip**. Beeps *and* vibrates when time's up. Built with the Web Audio API, so there are zero sound files to download.
 
-### 🏠 Home · Dashboard
-Greets you by name + today's date. Shows today's workout card with exercise/set counts and a prominent Start button. Below: weekly plan list — today's row glows cyan. If a workout was left in progress, a yellow Resume banner appears.
+</td>
+</tr>
+<tr>
+<td valign="top">
 
-### 💪 Workout · Active Session
-Focused single-screen flow: exercise name, set number (1/3), previous result for that exact set, large timer, reps input, Done button. Rest screen shows countdown with `+15s` / `-15s` / `Pause` / `Skip` controls. Tap **Pause** to freeze the whole session.
+### 📊 Per-set tracking
+`Pull-ups: 7 / 6 / 5`, with durations for each set. See exactly where the fatigue kicks in. Never squashed into one sad average.
 
-### 📜 History · Past Workouts
-List of completed workouts (newest first). Each card shows date, day, workout name, duration, total sets/reps, per-exercise rep strings with green/red delta vs your previous workout for that day. Tap any card to expand per-set details.
+</td>
+<td valign="top">
 
-### 📋 Plan · Edit & Share
-Tab through the 7 days. Edit workout name, add/remove/rename/reorder exercises, change sets / rest / type / stable ID, attach YouTube/image/video links. Save Plan persists. **Download Plan** exports portable JSON; **Import Plan** restores from a friend's file.
+### 🔄 Resume after refresh
+Refreshed mid-workout? Closed the tab by accident? Phone died? TEMPO saves as you go and shows a yellow banner: **Resume** or **Discard**.
 
-### 👤 Profile · Settings & Data
-Edit your name. Toggle sound / vibration. **Export All Data** (full backup), **Import All Data** (restore), **Reset Application** (wipes everything with confirmation). Shows total workouts logged.
+</td>
+</tr>
+<tr>
+<td valign="top">
 
-### 🎵 Music Player
-Tap the music icon (♪) in the top bar to open the music panel. Pre-loaded with 3 motivational gym mixes. Paste any YouTube link to add your own. Plays in-app via YouTube IFrame API — a mini now-playing bar floats at the bottom during workouts so you can control it without leaving the workout screen. Tap any track to play, × to remove. Playlist persists in `localStorage`.
+### 🏆 Cindy AMRAP mode
+20-minute countdown, round counter, finish-early option. Saved as its own special entry in your history. May cause swearing.
 
----
+</td>
+<td valign="top">
 
-## 💾 Data Storage
+### 🎵 Built-in music player
+Paste any YouTube link and it plays in-app. Comes pre-loaded with motivational mixes. A mini now-playing bar floats during workouts.
 
-Five separate `localStorage` keys keep concerns isolated. Nothing expires.
+</td>
+</tr>
+<tr>
+<td valign="top">
 
-| Key | Purpose |
-|-----|---------|
-| `cb_profile_v2` | Your name + account creation date. Never expires, never sent anywhere. |
-| `cb_plan_v2` | The full program: days, exercises, sets, rest, media links. Editable in Plan tab. Exportable as portable JSON. |
-| `cb_history_v2` | Array of completed workouts — per-set reps + durations + total volume. Drives the "Previous" target shown during new workouts. |
-| `cb_active_v2` | In-progress workout state. Enables resume after refresh, app close, or phone restart. Cleared on completion. |
-| `cb_settings_v2` | Sound on/off, vibration on/off. Toggleable from Profile tab or the top-bar sound icon. |
-| `cb_music_v2` | Your custom music playlist. Pre-seeded with 3 motivational mixes. Add/remove tracks via the music panel. |
+### 🔗 Form-video links
+Attach a YouTube tutorial, form image, or video URL to any exercise. They show up as tappable chips mid-workout. Because "am I doing this right?" deserves a fast answer.
 
-### Example Workout History Entry
+</td>
+<td valign="top">
 
-```json
-// Stored in cb_history_v2
+### 📜 History with deltas
+Tap any past workout to expand every set. **Green** means you beat last time, **red** means... tomorrow is another day.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 🤖 Thursday smart backup
+Thursday checks which sessions you missed this week and suggests the catch-up. Or you can just rest. No judgment. (Some judgment.)
+
+</td>
+<td valign="top">
+
+### 📤 Full backup
+Export **everything** (profile, plan, history, settings, music) as a single JSON. Import it on a new device and lose nothing.
+
+</td>
+</tr>
+</table>
+
+<br>
+
+## 🎨 Make it yours
+
+<table>
+<tr>
+<td width="33%" valign="top" align="center">
+
+### 🌈 Pick your vibe
+**Profile → Accent Color**
+
+<img src="https://img.shields.io/badge/-%20-4FD1C7?style=flat-square" alt="cyan"> <img src="https://img.shields.io/badge/-%20-F6A623?style=flat-square" alt="orange"> <img src="https://img.shields.io/badge/-%20-A78BFA?style=flat-square" alt="purple"> <img src="https://img.shields.io/badge/-%20-EF5350?style=flat-square" alt="red"> <img src="https://img.shields.io/badge/-%20-34D399?style=flat-square" alt="green"> <img src="https://img.shields.io/badge/-%20-60A5FA?style=flat-square" alt="blue"> <img src="https://img.shields.io/badge/-%20-EC4899?style=flat-square" alt="pink">
+
+7 presets plus a custom picker for literally any hex code. Cyan not your thing? Go orange. Go pink. Go wild.
+
+</td>
+<td width="33%" valign="top" align="center">
+
+### 🌗 Dark or light
+**Profile → Theme**
+
+One toggle. Remembers your choice. Dark mode for the 6 AM gym, light mode for people who enjoy sunlight.
+
+</td>
+<td width="33%" valign="top" align="center">
+
+### 📱 Install as an app
+**Profile → Install**
+
+Or use your browser menu → *"Install app"* / *"Add to Home Screen"*. Full-screen, app-like, and no app store required.
+
+</td>
+</tr>
+</table>
+
+<br>
+
+## 📋 Bring your own plan
+
+The starter plan is a deliberately generic **3-day full-body split** (Mon / Wed / Fri, with recovery days in between). Swap it for anything. Three ways:
+
+<details open>
+<summary><b>✏️ Option A: Edit it in the app</b> <i>(easiest)</i></summary>
+
+<br>
+
+**Plan tab** → tap a day → rename exercises, change sets, add / remove / reorder, attach form-video links → hit **Save Plan**. Done.
+
+</details>
+
+<details>
+<summary><b>🤖 Option B: Ask an AI to build it</b> <i>(lazy, but in a smart way)</i></summary>
+
+<br>
+
+Copy this prompt into ChatGPT, Claude, or Gemini, then edit the first line to describe what *you* want:
+
+```text
+Make me a workout plan as JSON in this exact format:
+
 {
-  "date": "2026-10-04",
-  "day": "sunday",
-  "workoutName": "Pull + Muscle-up",
-  "durationSec": 2538,
-  "type": "strength",
-  "totalSets": 16,
-  "totalReps": 84,
-  "exercises": [
+  "format": "tempo-workout-plan",
+  "version": 1,
+  "name": "My Plan",
+  "description": "5-day hypertrophy split",
+  "days": [
     {
-      "id": "pullups",
-      "name": "Pull-ups",
-      "sets": [
-        { "reps": 7, "durationSec": 18 },
-        { "reps": 6, "durationSec": 16 },
-        { "reps": 5, "durationSec": 15 }
+      "id": "monday",
+      "day": "Monday",
+      "workoutName": "Push Day",
+      "type": "strength",
+      "exercises": [
+        { "id": "benchpress", "name": "Bench Press", "sets": 4, "restSeconds": 120, "type": "strength", "note": "Controlled tempo" },
+        { "id": "overheadpress", "name": "Overhead Press", "sets": 3, "restSeconds": 90, "type": "strength", "note": "Strict press" }
       ]
     }
   ]
 }
+
+Use the same structure for all 7 days (monday through sunday).
+Each day needs: id, day, workoutName, type (strength / rest / cindy),
+and exercises (each with id, name, sets, restSeconds, type, note).
+Exercise type can be "strength" or "timed" (for things like planks).
+For rest days: type = "rest", exercises = [], and add a restNote field.
 ```
 
----
+Save the reply as `my-plan.json`, then go to **Option C**. 👇
 
-## 🎨 Customization
+</details>
 
-Make the program yours — no code edits needed.
+<details>
+<summary><b>📥 Option C: Import a JSON file</b></summary>
 
-### A. Edit exercises
-**Plan tab** → tap a day → rename exercises, change set counts, adjust rest seconds, change type (`strength` / `timed` / `skill`), reorder with ↑/Down buttons, remove with ×. Add new exercises with the + button. Don't forget to tap **Save Plan**.
+<br>
 
-### B. Attach form videos
-In the Plan editor, each exercise has a **Media Links** section with YouTube / Image / Video / Link URL fields. Paste a YouTube tutorial URL — it appears as a tappable chip on the day overview and the active workout Get Ready screen.
+**Plan tab** → **Import Plan** → pick your `.json` file → preview → confirm. Your profile and history stay **completely untouched**.
 
-### C. Configure Thursday & Friday
-Thursday is a smart backup day by default — it auto-suggests your first missed workout. Friday is pure recovery. You can keep them as rest, or convert them into regular training days via the Plan editor.
+</details>
 
-### D. Build your playlist
-Tap the music icon in the top bar. The default 3 tracks are motivational gym mixes — replace them with your own. Paste any YouTube link (watch URL, youtu.be, shorts, embed, or raw video ID). Tracks auto-play when added.
+<details>
+<summary><b>🎁 Sharing a plan with friends</b></summary>
 
-### E. Share your plan
-**Plan tab** → scroll to "Share Your Plan" card → **Download Plan**. The exported JSON contains ONLY the workout program — no profile, no history, no personal data. Send the file to a friend; they tap **Import Plan** on their device.
+<br>
 
----
+**Plan tab** → **Download Plan**.
 
-## 📁 File Location
+The file contains **only the program**: no name, no history, no personal data. Send it to anyone, they hit **Import Plan**, and their data stays theirs. Congratulations, you're now a personal trainer.
 
-Single self-contained HTML file — no dependencies, no install.
+</details>
 
-```
-calisthenics_bulk_tracker.html   ← The app (166 KB)
-README.md                        ← This file
-```
+<br>
 
-Open `calisthenics_bulk_tracker.html` in any browser. Works offline after first load. All data stays in that browser's `localStorage`.
+## 💾 Where does my data live?
 
----
+In your browser's `localStorage`. Six keys, all neatly separated:
 
-## 🌐 Browser Support
+| Key | What's inside |
+|-----|---------------|
+| `cb_profile_v2` | Your name + creation date |
+| `cb_plan_v2` | Your workout plan |
+| `cb_history_v2` | Every completed workout (per-set reps + durations) |
+| `cb_active_v2` | The in-progress workout (powers the Resume banner) |
+| `cb_settings_v2` | Sound / vibration / theme / accent color |
+| `cb_music_v2` | Your music playlist |
 
-| Browser | Minimum Version |
-|---------|----------------|
-| Chrome | 90+ |
+Nothing expires. Nothing leaves your device.
+
+> 💡 **Pro tip:** Clearing your browser data also clears TEMPO. Hit **Profile → Export All Data** once in a while and keep that file somewhere safe. Future-you will be very grateful.
+
+<br>
+
+## 🔒 Privacy (the short, boring, wonderful version)
+
+| | |
+|---|---|
+| ✅ | Zero tracking, zero analytics, zero cookies |
+| ✅ | Zero external API calls *(except YouTube, if you play music)* |
+| ✅ | Your data never leaves your device unless **you** export it |
+| ✅ | No account, no login, no email |
+| ✅ | **Reset Application** wipes everything instantly |
+
+<br>
+
+## 🌐 Browser support
+
+| Browser | Minimum version |
+|---------|:---------------:|
+| Chrome / Edge | 90+ |
 | Firefox | 88+ |
-| Safari | 14+ |
-| Edge | 90+ |
-| Mobile Safari (iOS) | 14+ |
+| Safari (desktop + iOS) | 14+ |
 | Chrome Android | 90+ |
 
-Requires JavaScript enabled. No frameworks — pure vanilla HTML/CSS/JS.
+JavaScript required. No frameworks. No dependencies. (Okay, YouTube, for the music. That's it.)
 
-### Mobile First
-Designed for phones. Bottom tab nav, large 44px+ tap targets, safe-area insets for notched devices, no horizontal scroll. Works great on tablet and desktop too.
+<br>
 
-### No Internet Needed
-After first load, works fully offline. YouTube music playback requires internet (loads YT IFrame API). Everything else — workout tracking, history, plan editing, data export — works offline.
+## 🙋 FAQ (a.k.a. questions you're about to ask)
 
----
+<details>
+<summary><b>Do I need to create an account?</b></summary>
+<br>
+No. There is no account. There is no server to keep an account on. TEMPO is a file. You opened the file. That's the relationship.
+</details>
 
-## 🔒 Privacy
+<details>
+<summary><b>Does it work without internet?</b></summary>
+<br>
+Yes, 100% offline for everything except the music player (YouTube needs, you know, YouTube). Timers, tracking, history, and plan editing all work in airplane mode, in a basement gym, or in the middle of a forest.
+</details>
 
-- ✅ **Zero tracking** — no analytics, no cookies, no telemetry
-- ✅ **Zero external API calls** (except YouTube for music playback)
-- ✅ **Your workout data never leaves your device** unless you explicitly export it
-- ✅ **No account, no login, no email required** — just a local profile with your name
-- ✅ **Reset Application** wipes everything instantly
+<details>
+<summary><b>I switched phones. Did I lose everything?</b></summary>
+<br>
+Only if you never exported. On the old phone: <b>Profile → Export All Data</b>. On the new one: <b>Profile → Import All Data</b>. Everything comes along, including your playlist.
+</details>
 
----
+<details>
+<summary><b>I refreshed the page in the middle of a set. Am I doomed?</b></summary>
+<br>
+Nope. TEMPO saves your workout state continuously. Look for the yellow banner on the home screen and tap <b>Resume</b>.
+</details>
+
+<details>
+<summary><b>The beep didn't beep.</b></summary>
+<br>
+Check three things: the sound toggle in <b>Profile</b> (and the speaker icon up top), your phone's silent mode, and your media volume. Browsers also like you to tap the page at least once before they allow audio, and starting a set counts.
+</details>
+
+<details>
+<summary><b>Can I use it for running / yoga / swimming / competitive cheese rolling?</b></summary>
+<br>
+It's built around sets, reps, and rest, so it shines for strength and bodyweight training. Timed exercises (like planks) work too. For the cheese rolling, you're on your own.
+</details>
+
+<details>
+<summary><b>Will you add cloud sync?</b></summary>
+<br>
+It's on the wishlist as an <i>optional, opt-in</i> thing. TEMPO will never make you create an account just to do a push-up.
+</details>
+
+<br>
+
+## 📁 Files
+
+```text
+tempo.html      ← The app (~175 KB, single file). This is the whole thing.
+manifest.json   ← PWA manifest
+icon-192.png    ← App icon (small)
+icon-512.png    ← App icon (large)
+icon-32.png     ← Favicon
+README.md       ← You are here 📍
+assets/         ← Banner + preview images for this README
+```
+
+Open `tempo.html` and you're done. The other files only matter if you want the **install as app** feature to work.
+
+<br>
+
+## 🤝 Contribute
+
+This is open. Fork it, break it, improve it. PRs welcome.
+
+| | |
+|---|---|
+| 🐛 **Found a bug?** | Open an issue. Bonus points for steps to reproduce. |
+| 💡 **Got an idea?** | Start a discussion. |
+| 🔧 **Want to add a feature?** | Send a PR. |
+| 📝 **Better jokes for this README?** | Edit this README. We *will* judge them. |
+
+**Ideas worth exploring:**
+
+- [ ] ⚖️ Body-weight tracking
+- [ ] 📈 Weekly volume charts
+- [ ] 🔥 Workout streaks / habit tracking
+- [ ] 🚴 Rest-day cardio logging
+- [ ] 📚 Exercise library with auto-complete
+- [ ] ☁️ Optional, opt-in cloud sync
+
+<br>
 
 ## 📄 License
 
-This project is provided as-is for personal use. Modify it, share it, make it yours.
+Do whatever you want with it. Modify it. Share it. Sell it *(please don't, but technically you can)*. Attribution appreciated, not required.
 
----
+<br>
 
-<p align="center">
-  <strong>Built with vanilla HTML · CSS · JavaScript</strong><br>
-  <sub>Calisthenics Bulk — Workout Tracker · v 2.0</sub>
-</p>
+<div align="center">
+
+<img src="https://img.shields.io/badge/Made%20with-sweat%20%26%20vanilla%20JS-4FD1C7?style=flat-square&labelColor=1a242c" alt="Made with sweat and vanilla JS">
+
+**Your workout. Your tempo.**
+
+<sub>Built with vanilla HTML · CSS · JavaScript. No frameworks, no build step, no nonsense.</sub>
+
+</div>
