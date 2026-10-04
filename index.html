@@ -1158,9 +1158,12 @@ input, textarea, select { font-family: inherit; }
 .music-mini-bar .mini-icon {
   width: 28px; height: 28px;
   border-radius: 50%;
+  border: 0;
+  padding: 0;
   background: var(--c-accent);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+  cursor: pointer;
 }
 .music-mini-bar .mini-icon svg { width: 12px; height: 12px; stroke: #0a141a; fill: none; stroke-width: 2.5; }
 .music-mini-bar .mini-icon svg path { fill: #0a141a; stroke: none; }
@@ -1180,6 +1183,19 @@ input, textarea, select { font-family: inherit; }
   color: var(--c-accent);
   font-weight: 700;
 }
+.music-mini-bar .mini-close-btn {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--c-text-dim);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+.music-mini-bar .mini-close-btn:hover { color: var(--c-danger); }
 
 /* Keep the YouTube iframe mounted while positioning it over the video stage. */
 #yt-player-host {
@@ -1402,6 +1418,41 @@ input, textarea, select { font-family: inherit; }
 }
 .workout-timer.rest { color: var(--c-warn); text-shadow: 0 0 24px rgba(246,166,35,0.4); }
 .workout-timer.cindy { font-size: 64px; }
+.timer-ring {
+  --timer-ring-color: var(--c-accent-bright);
+  position: relative;
+  width: 176px;
+  height: 176px;
+  margin: 8px auto 18px;
+  display: grid;
+  place-items: center;
+}
+.timer-ring.rest { --timer-ring-color: var(--c-warn); }
+.timer-ring svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transform: rotate(-90deg);
+}
+.timer-ring-track,
+.timer-ring-progress {
+  fill: none;
+  stroke-width: 7;
+}
+.timer-ring-track { stroke: var(--c-surface-2); }
+.timer-ring-progress {
+  stroke: var(--timer-ring-color);
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 5px var(--c-accent-glow));
+  transition: stroke-dashoffset .2s linear;
+}
+.timer-ring .workout-timer {
+  position: absolute;
+  margin: 0;
+  font-size: 34px;
+  text-shadow: none;
+}
+.timer-ring .workout-timer.cindy { font-size: 38px; }
 
 .workout-input-wrap {
   margin: 12px 0 16px 0;
@@ -2689,13 +2740,15 @@ input, textarea, select { font-family: inherit; }
 
 <!-- Mini now-playing bar (shown when music is playing during workout) -->
 <div class="music-mini-bar" id="music-mini-bar">
-  <div class="mini-icon">
-    <svg viewBox="0 0 24 24"><path d="M6 4 L20 12 L6 20 Z"/></svg>
-  </div>
+  <button class="mini-icon" id="mini-play-toggle" aria-label="Pause music">
+    <svg id="mini-play-icon" viewBox="0 0 24 24"><path d="M6 4 L20 12 L6 20 Z"/></svg>
+    <svg id="mini-pause-icon" viewBox="0 0 24 24" style="display:none;"><rect x="6" y="4" width="4" height="16" fill="currentColor" stroke="none"/><rect x="14" y="4" width="4" height="16" fill="currentColor" stroke="none"/></svg>
+  </button>
   <div class="mini-info">
     <div class="mini-title" id="mini-title">—</div>
-    <div class="mini-sub">Now Playing</div>
+    <div class="mini-sub" id="mini-status">Paused</div>
   </div>
+  <button class="mini-close-btn" id="mini-close" aria-label="Stop music and close player">×</button>
 </div>
 
 <script>
@@ -3685,18 +3738,36 @@ function stopSetTimer() {
   if (setTimerHandle) { clearInterval(setTimerHandle); setTimerHandle = null; }
 }
 
+function getRestRemainingMs() {
+  if (!active) return 0;
+  return Math.max(0, active.paused ? (active.pauseRemainingMs || 0) : active.restEndsAt - Date.now());
+}
+
+function getRestDurationMs() {
+  return active?.restDurationMs || ((active?.exercises?.[active.exerciseIdx]?.restSeconds || 90) * 1000);
+}
+
+function updateTimerRingProgress(id, progress) {
+  const ring = document.getElementById(id);
+  if (!ring) return;
+  const clampedProgress = Math.max(0, Math.min(1, progress));
+  ring.style.strokeDashoffset = String(100 * (1 - clampedProgress));
+}
+
 function startRestTimer(durationSec) {
   if (!active) return;
   active.phase = 'rest';
+  active.restDurationMs = durationSec * 1000;
   active.restEndsAt = Date.now() + durationSec * 1000;
   saveActive();
   if (restTimerHandle) clearInterval(restTimerHandle);
   restTimerHandle = setInterval(() => {
-    const remaining = Math.max(0, (active.restEndsAt - Date.now()) / 1000);
+    const remainingMs = getRestRemainingMs();
+    const remaining = Math.ceil(remainingMs / 1000);
     if (currentView === 'workout') {
-      // Only update the timer text, don't re-render the entire screen
       const timerEl = document.querySelector('.workout-timer.rest');
-      if (timerEl) timerEl.textContent = formatDuration(Math.ceil(remaining));
+      if (timerEl) timerEl.textContent = formatDuration(remaining);
+      updateTimerRingProgress('rest-timer-progress', remainingMs / getRestDurationMs());
     }
     if (remaining <= 0) {
       clearInterval(restTimerHandle);
@@ -3716,7 +3787,9 @@ function onRestComplete() {
 
 function adjustRest(deltaSec) {
   if (!active || active.phase !== 'rest') return;
+  active.restDurationMs = Math.max(1000, getRestDurationMs() + deltaSec * 1000);
   active.restEndsAt = Math.max(Date.now() + 1000, active.restEndsAt + deltaSec * 1000);
+  if (active.paused) active.pauseRemainingMs = Math.max(1000, (active.pauseRemainingMs || 0) + deltaSec * 1000);
   saveActive();
   renderWorkout();
 }
@@ -3744,10 +3817,12 @@ function resumeRest() {
   saveActive();
   if (restTimerHandle) clearInterval(restTimerHandle);
   restTimerHandle = setInterval(() => {
-    const remaining = Math.max(0, (active.restEndsAt - Date.now()) / 1000);
+    const remainingMs = getRestRemainingMs();
+    const remaining = Math.ceil(remainingMs / 1000);
     if (currentView === 'workout') {
       const timerEl = document.querySelector('.workout-timer.rest');
-      if (timerEl) timerEl.textContent = formatDuration(Math.ceil(remaining));
+      if (timerEl) timerEl.textContent = formatDuration(remaining);
+      updateTimerRingProgress('rest-timer-progress', remainingMs / getRestDurationMs());
     }
     if (remaining <= 0) {
       clearInterval(restTimerHandle);
@@ -3789,6 +3864,7 @@ function startCindyTimer() {
       // Only update the timer text, don't re-render
       const timerEl = document.querySelector('.workout-timer.cindy');
       if (timerEl) timerEl.textContent = formatDuration(remaining);
+      updateTimerRingProgress('cindy-timer-progress', remaining / active.cindyDuration);
       // update progress bar
       const fill = document.getElementById('workout-progress-fill');
       if (fill) fill.style.width = Math.min(100, (elapsed / active.cindyDuration) * 100) + '%';
@@ -3883,11 +3959,19 @@ function renderWorkout() {
       </button>
     `;
   } else if (active.phase === 'rest') {
-    const remaining = Math.max(0, Math.ceil((active.restEndsAt - Date.now()) / 1000));
+    const remainingMs = getRestRemainingMs();
+    const remaining = Math.ceil(remainingMs / 1000);
+    const restProgress = remainingMs / getRestDurationMs();
     html = `
       <div class="workout-phase-label">Rest</div>
       <h2 class="workout-exercise-name" style="font-size:22px;">${ex.name}</h2>
-      <div class="workout-timer rest">${formatDuration(remaining)}</div>
+      <div class="timer-ring rest">
+        <svg viewBox="0 0 160 160" aria-hidden="true">
+          <circle class="timer-ring-track" cx="80" cy="80" r="68"></circle>
+          <circle class="timer-ring-progress" id="rest-timer-progress" pathLength="100" stroke-dasharray="100" stroke-dashoffset="${100 * (1 - restProgress)}" cx="80" cy="80" r="68"></circle>
+        </svg>
+        <div class="workout-timer rest">${formatDuration(remaining)}</div>
+      </div>
       <div class="rest-controls">
         <button class="rest-btn" id="btn-rest-minus">-15s</button>
         <button class="rest-btn warn" id="btn-rest-pause">${active.paused ? 'Resume' : 'Pause'}</button>
@@ -3976,9 +4060,16 @@ function renderCindy(screen) {
     return;
   }
 
+  const cindyProgress = remaining / active.cindyDuration;
   screen.innerHTML = `
     <div class="workout-phase-label">Cindy · 20-min AMRAP</div>
-    <div class="workout-timer cindy">${formatDuration(remaining)}</div>
+    <div class="timer-ring cindy">
+      <svg viewBox="0 0 160 160" aria-hidden="true">
+        <circle class="timer-ring-track" cx="80" cy="80" r="68"></circle>
+        <circle class="timer-ring-progress" id="cindy-timer-progress" pathLength="100" stroke-dasharray="100" stroke-dashoffset="${100 * (1 - cindyProgress)}" cx="80" cy="80" r="68"></circle>
+      </svg>
+      <div class="workout-timer cindy">${formatDuration(remaining)}</div>
+    </div>
     <div class="cindy-rounds-display">
       <div class="cindy-rounds-num">${active.rounds}</div>
       <div class="cindy-rounds-label">Rounds Completed</div>
@@ -5087,6 +5178,12 @@ window.addEventListener('beforeunload', (e) => {
    Falls back to opening in new tab if API unavailable.
    ============================================================ */
 const MUSIC_KEY = 'cb_music_v2';
+const MUSIC_QUALITY_KEY = 'cb_music_quality_v1';
+const PLAYBACK_QUALITIES = new Set(['small', 'medium', 'large', 'hd720', 'hd1080', 'hd1440', 'hd2160', 'highres']);
+const PLAYBACK_QUALITY_LABELS = {
+  small: '240p', medium: '360p', large: '480p', hd720: '720p',
+  hd1080: '1080p', hd1440: '1440p', hd2160: '2160p', highres: 'High quality',
+};
 let musicPlaylist = [];
 let currentTrackIdx = -1;
 let ytPlayer = null;
@@ -5095,6 +5192,13 @@ let ytPlayerReady = false;
 let ytPlayerPromise = null;
 let isMusicPlaying = false;
 let videoVisible = false;  // false = video hidden, true = video shown
+let resumePosition = 0;
+let resumeVideoId = null;
+let preferredPlaybackQuality = 'medium';
+try {
+  const savedQuality = localStorage.getItem(MUSIC_QUALITY_KEY);
+  if (PLAYBACK_QUALITIES.has(savedQuality)) preferredPlaybackQuality = savedQuality;
+} catch (e) { /* local storage may be unavailable */ }
 
 // Default motivational playlist (well-known YouTube mixes — user can replace)
 const DEFAULT_MUSIC = [
@@ -5127,6 +5231,13 @@ function saveMusicData() {
   try {
     localStorage.setItem(MUSIC_KEY, JSON.stringify(musicPlaylist));
   } catch (e) { console.error('music save fail', e); }
+}
+
+function updateVideoQualityHint() {
+  const hint = document.getElementById('video-hint');
+  if (hint && videoVisible) {
+    hint.textContent = `Video visible · ${PLAYBACK_QUALITY_LABELS[preferredPlaybackQuality]} requested`;
+  }
 }
 
 function extractYouTubeId(url) {
@@ -5211,9 +5322,12 @@ function initYouTubePlayer() {
         },
         onStateChange: (e) => {
           if (e.data === YT.PlayerState.ENDED) {
-            playNextTrack();
+            playTrack((currentTrackIdx + 1) % musicPlaylist.length, 0);
           } else if (e.data === YT.PlayerState.PLAYING) {
             isMusicPlaying = true;
+            if (ytPlayer.setPlaybackQuality) {
+              try { ytPlayer.setPlaybackQuality(preferredPlaybackQuality); } catch (error) { /* YouTube may ignore quality requests. */ }
+            }
             // Fetch real title on first play (if not already set)
             const track = musicPlaylist[currentTrackIdx];
             if (track && (track.title.startsWith('YouTube · ') || track.title === 'Loading…' || track.title === 'Untitled Track')) {
@@ -5235,6 +5349,7 @@ function initYouTubePlayer() {
             }
           } else if (e.data === YT.PlayerState.PAUSED) {
             isMusicPlaying = false;
+            try { resumePosition = ytPlayer.getCurrentTime(); } catch (error) { /* ignore */ }
             updateMusicPlayPauseIcon();
           } else if (e.data === YT.PlayerState.BUFFERING) {
             // keep current state icon during buffering
@@ -5242,6 +5357,12 @@ function initYouTubePlayer() {
             isMusicPlaying = false;
             updateMusicPlayPauseIcon();
           }
+        },
+        onPlaybackQualityChange: (e) => {
+          if (!PLAYBACK_QUALITIES.has(e.data)) return;
+          preferredPlaybackQuality = e.data;
+          try { localStorage.setItem(MUSIC_QUALITY_KEY, preferredPlaybackQuality); } catch (error) { /* ignore */ }
+          updateVideoQualityHint();
         },
         onError: (e) => {
           console.warn('YT playback error', e);
@@ -5282,6 +5403,10 @@ async function ensureYouTubePlayer() {
       try {
         const state = ytPlayer.getPlayerState();
         const actuallyPlaying = (state === 1);
+        if (actuallyPlaying && currentTrackIdx >= 0) {
+          resumePosition = ytPlayer.getCurrentTime();
+          resumeVideoId = extractYouTubeId(musicPlaylist[currentTrackIdx]?.url);
+        }
         if (actuallyPlaying !== isMusicPlaying) {
           isMusicPlaying = actuallyPlaying;
           updateMusicPlayPauseIcon();
@@ -5319,25 +5444,45 @@ function positionYouTubePlayer() {
   host.style.pointerEvents = 'auto';
 }
 
-function playTrack(idx) {
+function refreshVisibleYouTubePlayer() {
+  positionYouTubePlayer();
+  setTimeout(() => {
+    const panel = document.getElementById('music-panel');
+    if (!videoVisible || !panel?.classList.contains('show')) return;
+    positionYouTubePlayer();
+    if (!ytPlayer || !ytPlayerReady) return;
+    try {
+      const playerState = ytPlayer.getPlayerState();
+      const currentTime = ytPlayer.getCurrentTime();
+      if (Number.isFinite(currentTime)) ytPlayer.seekTo(currentTime, true);
+      if (playerState === YT.PlayerState.PLAYING) ytPlayer.playVideo();
+      if (ytPlayer.setPlaybackQuality) ytPlayer.setPlaybackQuality(preferredPlaybackQuality);
+    } catch (error) { /* player may still be restoring */ }
+  }, 350);
+}
+
+function playTrack(idx, startSeconds) {
   if (idx < 0 || idx >= musicPlaylist.length) return;
-  currentTrackIdx = idx;
   const track = musicPlaylist[idx];
   const videoId = extractYouTubeId(track.url);
   if (!videoId) {
     showToast('Not a valid YouTube link', 'warn');
     return;
   }
+  if (videoId !== resumeVideoId) resumePosition = 0;
+  currentTrackIdx = idx;
+  resumeVideoId = videoId;
+  const startAt = Number.isFinite(startSeconds) ? startSeconds : resumePosition;
   // Show loading state in now-playing title only
   showVideoLoading();
   updateMusicUI();
   ensureYouTubePlayer().then(player => {
     if (player && player.loadVideoById) {
       try {
-        player.loadVideoById({ videoId, suggestedQuality: 'medium' });
+        player.loadVideoById({ videoId, startSeconds: startAt, suggestedQuality: preferredPlaybackQuality });
         player.playVideo();
         if (player.setPlaybackQuality) {
-          try { player.setPlaybackQuality('medium'); } catch (e) { /* YouTube may ignore quality requests. */ }
+          try { player.setPlaybackQuality(preferredPlaybackQuality); } catch (e) { /* YouTube may ignore quality requests. */ }
         }
       } catch (e) {
         console.error('loadVideoById error', e);
@@ -5396,7 +5541,7 @@ function togglePlayPause() {
       ytPlayer.playVideo();
       isMusicPlaying = true;
     } else if (state === 0 || state === 5 || state === -1) {
-      // Ended / cued / unstarted → reload current track
+      // Resume stopped playback from its last saved position.
       if (currentTrackIdx >= 0) {
         playTrack(currentTrackIdx);
       } else if (musicPlaylist.length > 0) {
@@ -5433,7 +5578,7 @@ function toggleVideo() {
     toggleBtn.setAttribute('aria-pressed', 'true');
     toggleBtn.setAttribute('aria-label', 'Video On');
     label.textContent = 'Video On';
-    hint.textContent = 'Video visible · 360p requested';
+    updateVideoQualityHint();
     hint.classList.remove('warn');
     showToast('Video on');
   } else {
@@ -5452,13 +5597,26 @@ function toggleVideo() {
 function updateMusicPlayPauseIcon() {
   const playIcon = document.getElementById('music-play-icon');
   const pauseIcon = document.getElementById('music-pause-icon');
-  if (!playIcon || !pauseIcon) return;
+  const miniPlayIcon = document.getElementById('mini-play-icon');
+  const miniPauseIcon = document.getElementById('mini-pause-icon');
+  const miniToggle = document.getElementById('mini-play-toggle');
+  const miniStatus = document.getElementById('mini-status');
   if (isMusicPlaying) {
-    playIcon.style.display = 'none';
-    pauseIcon.style.display = '';
+    if (playIcon) playIcon.style.display = 'none';
+    if (pauseIcon) pauseIcon.style.display = '';
+    if (miniPlayIcon) miniPlayIcon.style.display = 'none';
+    if (miniPauseIcon) miniPauseIcon.style.display = '';
+    if (miniToggle) miniToggle.setAttribute('aria-label', 'Pause music');
+    if (miniToggle) miniToggle.setAttribute('aria-pressed', 'true');
+    if (miniStatus) miniStatus.textContent = 'Now Playing';
   } else {
-    playIcon.style.display = '';
-    pauseIcon.style.display = 'none';
+    if (playIcon) playIcon.style.display = '';
+    if (pauseIcon) pauseIcon.style.display = 'none';
+    if (miniPlayIcon) miniPlayIcon.style.display = '';
+    if (miniPauseIcon) miniPauseIcon.style.display = 'none';
+    if (miniToggle) miniToggle.setAttribute('aria-label', 'Resume music');
+    if (miniToggle) miniToggle.setAttribute('aria-pressed', 'false');
+    if (miniStatus) miniStatus.textContent = 'Paused';
   }
 }
 
@@ -5473,11 +5631,13 @@ function updateMusicUI() {
     const t = musicPlaylist[currentTrackIdx];
     if (npTitle) npTitle.textContent = t.title;
     if (miniTitle) miniTitle.textContent = t.title;
-    if (isMusicPlaying) miniBar?.classList.add('show');
+    miniBar?.classList.add('show');
   } else {
     if (npTitle) npTitle.textContent = 'No track selected';
     if (miniTitle) miniTitle.textContent = '—';
+    miniBar?.classList.remove('show');
   }
+  updateMusicPlayPauseIcon();
 
   if (countEl) countEl.textContent = `${musicPlaylist.length} ${musicPlaylist.length === 1 ? 'track' : 'tracks'}`;
 
@@ -5526,13 +5686,25 @@ function escapeHtml(str) {
 
 function showMiniBar() {
   const miniBar = document.getElementById('music-mini-bar');
-  if (miniBar && isMusicPlaying && currentTrackIdx >= 0) {
+  if (miniBar && currentTrackIdx >= 0) {
     miniBar.classList.add('show');
   }
 }
 function hideMiniBar() {
   const miniBar = document.getElementById('music-mini-bar');
   if (miniBar) miniBar.classList.remove('show');
+}
+
+function closeMiniBar() {
+  if (ytPlayer && ytPlayer.getCurrentTime) {
+    try { resumePosition = ytPlayer.getCurrentTime(); } catch (error) { /* ignore */ }
+  }
+  resumeVideoId = extractYouTubeId(musicPlaylist[currentTrackIdx]?.url) || resumeVideoId;
+  if (ytPlayer && ytPlayer.stopVideo) ytPlayer.stopVideo();
+  isMusicPlaying = false;
+  updateMusicPlayPauseIcon();
+  hideMiniBar();
+  closeMusicPanel();
 }
 
 /* ============================================================
@@ -5667,7 +5839,7 @@ function openMusicPanel() {
   initAudio(); // unlock audio context on user gesture
   document.getElementById('music-panel').classList.add('show');
   if (videoVisible) document.getElementById('music-video-stage').classList.add('show');
-  positionYouTubePlayer();
+  refreshVisibleYouTubePlayer();
   updateMusicUI();
 }
 function closeMusicPanel() {
@@ -5916,7 +6088,18 @@ function init() {
   document.getElementById('music-panel').addEventListener('click', (e) => {
     if (e.target.id === 'music-panel') closeMusicPanel();
   });
-  document.getElementById('music-mini-bar').addEventListener('click', openMusicPanel);
+  document.getElementById('music-mini-bar').addEventListener('click', (e) => {
+    if (e.target.closest('button')) return;
+    openMusicPanel();
+  });
+  document.getElementById('mini-play-toggle').addEventListener('click', (e) => {
+    e.stopPropagation();
+    togglePlayPause();
+  });
+  document.getElementById('mini-close').addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeMiniBar();
+  });
   // Initial music UI render (in case panel is opened later)
   updateMusicUI();
 
