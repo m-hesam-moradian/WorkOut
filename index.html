@@ -2344,6 +2344,21 @@ input, textarea, select { font-family: inherit; }
       Save Plan
     </button>
 
+    <div class="plan-share-card neu-raised-sm" style="border:1px solid rgba(79, 209, 199, 0.3); margin-bottom:14px;">
+      <div class="plan-share-title" style="color:var(--c-accent-bright);">✨ Ask AI to Make a Plan</div>
+      <div class="plan-share-desc">Copy a ready-to-paste prompt that explains every TEMPO option to ChatGPT, Claude, or Gemini. The AI will reply with a valid JSON plan you can import here.</div>
+      <div class="plan-share-actions">
+        <button class="btn-primary" id="btn-ask-ai">
+          <svg viewBox="0 0 24 24"><path d="M9 18 L9 6 L19 4 L19 16"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></svg>
+          Copy AI Prompt
+        </button>
+        <button class="btn-primary secondary" id="btn-download-template">
+          <svg viewBox="0 0 24 24"><path d="M12 3 L12 15"/><path d="M7 10 L12 15 L17 10"/><path d="M5 21 L19 21"/></svg>
+          Download Template
+        </button>
+      </div>
+    </div>
+
     <div class="plan-share-card neu-raised-sm">
       <div class="plan-share-title">Share Your Plan</div>
       <div class="plan-share-desc">Download the workout plan as JSON to share with friends, or import someone else's plan. Your personal profile and history stay separate and are never included.</div>
@@ -2571,57 +2586,213 @@ let planEditDay = 'saturday'; // active day in plan editor
 const DEFAULT_PLAN = {
   format: 'tempo-workout-plan',
   version: 1,
-  name: 'TEMPO',
-  description: 'Starter workout plan — replace with your own via Plan editor or JSON import.',
+  name: 'My Custom Plan',
+  description: 'Optional short description of the program — goals, philosophy, anything.',
   days: [
     {
-      id: 'monday', day: 'Monday', workoutName: 'Full Body A', type: 'strength',
+      id: 'monday',
+      day: 'Monday',
+      workoutName: 'Push Day',
+      type: 'strength',
       exercises: [
-        { id: 'squats',        name: 'Squats',                sets: 3, restSeconds: 90, type: 'strength', note: 'Controlled tempo · full depth' },
-        { id: 'pushups',       name: 'Push-ups',              sets: 3, restSeconds: 90, type: 'strength', note: 'Quality reps · full lockout' },
-        { id: 'rows',          name: 'Rows',                   sets: 3, restSeconds: 90, type: 'strength', note: 'Squeeze at top · 2-sec hold' },
-        { id: 'plank',         name: 'Plank',                  sets: 3, restSeconds: 60, type: 'timed',    note: 'Time under tension · neutral spine' },
-      ],
+        {
+          id: 'benchpress',
+          name: 'Bench Press',
+          sets: 4,
+          restSeconds: 120,
+          type: 'strength',
+          note: 'Controlled tempo · 2-sec pause at chest · full lockout',
+          mediaLinks: [
+            {
+              type: 'youtube',
+              label: 'Form Tutorial',
+              url: 'https://www.youtube.com/watch?v=rT7DgCr-3pg'
+            },
+            {
+              type: 'image',
+              label: 'Form Photo',
+              url: 'https://example.com/bench-form.jpg'
+            },
+            {
+              type: 'video',
+              label: 'Demo',
+              url: 'https://example.com/benchpress-demo.mp4'
+            },
+            {
+              type: 'link',
+              label: 'Article',
+              url: 'https://www.strongfirst.com/blog/bench-press-setup/'
+            }
+          ]
+        },
+        {
+          id: 'inclinepress',
+          name: 'Incline Dumbbell Press',
+          sets: 3,
+          restSeconds: 90
+        },
+        {
+          id: 'plank',
+          name: 'Plank',
+          sets: 3,
+          restSeconds: 60,
+          type: 'timed',
+          note: 'Time under tension · neutral spine · breathe normally'
+        },
+        {
+          id: 'handstandpractice',
+          name: 'Handstand Practice',
+          sets: 1,
+          restSeconds: 60,
+          type: 'skill',
+          note: 'Wall holds → shoulder taps → freestanding attempts'
+        }
+      ]
     },
     {
-      id: 'wednesday', day: 'Wednesday', workoutName: 'Full Body B', type: 'strength',
+      id: 'tuesday',
+      day: 'Tuesday',
+      workoutName: 'Cindy 20-min AMRAP',
+      type: 'cindy',
+      exercises: [],
+      note: '20-minute AMRAP. Cycle through the scheme as many times as possible. Track total completed rounds.',
+      durationSeconds: 1200,
+      cindy: {
+        durationSeconds: 1200,
+        scheme: [
+          {
+            id: 'cindyPullups',
+            name: 'Pull-ups',
+            reps: 5,
+            mediaLinks: []
+          },
+          {
+            id: 'cindyPushups',
+            name: 'Push-ups',
+            reps: 10,
+            mediaLinks: [
+              {
+                type: 'youtube',
+                label: 'Form',
+                url: 'https://www.youtube.com/watch?v=14D-2c9kvVw'
+              }
+            ]
+          },
+          {
+            id: 'cindySquats',
+            name: 'Air Squats',
+            reps: 15,
+            mediaLinks: []
+          }
+        ]
+      }
+    },
+    {
+      id: 'thursday',
+      day: 'Thursday',
+      workoutName: 'Recovery',
+      type: 'rest',
+      exercises: [],
+      restNote: 'Light cardio, mobility, or full rest. Recovery is when you actually get stronger.'
+    },
+    {
+      id: 'saturday',
+      day: 'Saturday',
+      workoutName: 'Skill Day',
+      type: 'skill',
       exercises: [
-        { id: 'deadlift',      name: 'Deadlift',              sets: 3, restSeconds: 120, type: 'strength', note: 'Hip hinge · controlled eccentric' },
-        { id: 'overheadpress', name: 'Overhead Press',         sets: 3, restSeconds: 90,  type: 'strength', note: 'Strict press · no leg drive' },
-        { id: 'pullups',       name: 'Pull-ups',               sets: 3, restSeconds: 90,  type: 'strength', note: 'Clean reps · full hang start' },
-        { id: 'lunges',        name: 'Lunges',                  sets: 3, restSeconds: 60,  type: 'strength', note: 'Each leg · full range' },
-      ],
+        {
+          id: 'handstand',
+          name: 'Handstand Practice',
+          sets: 1,
+          restSeconds: 60,
+          type: 'skill',
+          note: 'Wall holds → shoulder taps → freestanding attempts · 10–15 min total'
+        },
+        {
+          id: 'muscleup',
+          name: 'Muscle-up Progression',
+          sets: 1,
+          restSeconds: 90,
+          type: 'skill',
+          note: 'Pull-up → high pull-up → chest-to-bar → band-assisted → muscle-up'
+        }
+      ]
     },
     {
-      id: 'friday', day: 'Friday', workoutName: 'Full Body C', type: 'strength',
+      id: 'wednesday',
+      day: 'Wednesday',
+      workoutName: 'Pull Day',
+      type: 'strength',
       exercises: [
-        { id: 'benchpress',    name: 'Bench Press',            sets: 3, restSeconds: 90, type: 'strength', note: 'Controlled descent · explosive up' },
-        { id: 'chinups',       name: 'Chin-ups',                sets: 3, restSeconds: 90, type: 'strength', note: 'Supinated grip · clean reps' },
-        { id: 'bulgarianSplit',name: 'Bulgarian Split Squats', sets: 3, restSeconds: 90, type: 'strength', note: 'Each leg · 90° front knee' },
-        { id: 'hangingKneeRaises', name: 'Hanging Knee Raises',sets: 3, restSeconds: 60, type: 'strength', note: 'Controlled · no swing' },
-      ],
+        {
+          id: 'deadlift',
+          name: 'Deadlift',
+          sets: 3,
+          restSeconds: 180,
+          type: 'strength',
+          note: 'Hip hinge · controlled eccentric · no bouncing',
+          mediaLinks: [
+            {
+              type: 'youtube',
+              label: 'Form',
+              url: 'https://www.youtube.com/watch?v=op9kVnSso6Q'
+            }
+          ]
+        },
+        {
+          id: 'pullups',
+          name: 'Pull-ups',
+          sets: 3,
+          restSeconds: 90,
+          type: 'strength',
+          note: 'Full hang start · no kipping'
+        },
+        {
+          id: 'barbellrows',
+          name: 'Barbell Rows',
+          sets: 3,
+          restSeconds: 90,
+          type: 'strength',
+          note: 'Pendlay style · explosive concentric'
+        }
+      ]
     },
     {
-      id: 'tuesday', day: 'Tuesday', workoutName: 'Active Recovery', type: 'rest',
+      id: 'friday',
+      day: 'Friday',
+      workoutName: 'Free',
+      type: 'rest',
       exercises: [],
-      restNote: 'Light cardio, mobility, or skill practice. Keep it easy — recovery is when you get stronger.',
+      restNote: 'Free day. Do what you enjoy — or nothing at all.'
     },
     {
-      id: 'thursday', day: 'Thursday', workoutName: 'Backup / Rest', type: 'rest',
-      exercises: [],
-      restNote: 'Optional backup day. If you missed a session earlier this week, do it here. Otherwise, rest.',
-    },
-    {
-      id: 'saturday', day: 'Saturday', workoutName: 'Free', type: 'rest',
-      exercises: [],
-      restNote: 'Free day. Do what you enjoy — or nothing at all.',
-    },
-    {
-      id: 'sunday', day: 'Sunday', workoutName: 'Free', type: 'rest',
-      exercises: [],
-      restNote: 'Free day. Do what you enjoy — or nothing at all.',
-    },
-  ],
+      id: 'sunday',
+      day: 'Sunday',
+      workoutName: 'Legs',
+      type: 'strength',
+      exercises: [
+        {
+          id: 'squats',
+          name: 'Squats',
+          sets: 4,
+          restSeconds: 120
+        },
+        {
+          id: 'lunges',
+          name: 'Lunges',
+          sets: 3,
+          restSeconds: 90
+        },
+        {
+          id: 'calfraises',
+          name: 'Calf Raises',
+          sets: 3,
+          restSeconds: 60
+        }
+      ]
+    }
+  ]
 };
 
 /* ============================================================
@@ -4263,6 +4434,213 @@ function exportPlanOnly() {
   showToast('✓ Plan downloaded');
 }
 
+/* ============================================================
+   AI PROMPT — copy a ready-to-paste schema prompt to clipboard
+   ============================================================ */
+const AI_PROMPT_TEMPLATE = `You are generating a workout plan for TEMPO, a mobile workout tracker app.
+
+Output ONLY valid JSON (no markdown, no explanations, no code fences) — the user will save your reply as a .json file and import it into the app. Wait for the user to tell you their goal, then output the JSON.
+
+=== TEMPO PLAN SCHEMA ===
+
+ROOT FIELDS:
+- format (string, REQUIRED): must be exactly "tempo-workout-plan"
+- version (number, REQUIRED): must be 1
+- name (string, REQUIRED): display name for the plan
+- description (string, OPTIONAL): short description
+- days (array, REQUIRED): exactly 7 day objects, one per weekday
+
+DAY TYPES (day.type — pick ONE per day):
+- "strength"  → Normal set-by-set flow: Start Set → enter reps → Done → rest timer. The default for most days.
+- "cindy"     → AMRAP (As Many Rounds As Possible) mode: countdown timer + round counter. Used for circuit workouts like Cindy.
+- "rest"      → No workout. Optional recovery note. Used for rest / backup days.
+- "skill"     → Pure skill practice day. Behaves like strength but mostly semantic.
+
+EXERCISE TYPES (exercise.type — pick ONE per exercise, OPTIONAL, defaults to "strength"):
+- "strength"  → Normal rep-counting exercise (Push-ups, Squats, Pull-ups)
+- "timed"     → Hold-for-time exercise (Plank, Wall Sit) — user enters seconds instead of reps
+- "skill"     → Skill practice within a strength day (Handstand, Muscle-up work)
+
+MEDIA TYPES (mediaLinks[].type — pick ONE per media link, OPTIONAL, auto-detected from URL):
+- "youtube"   → YouTube URL (youtube.com/watch?v=..., youtu.be/..., /embed/, /shorts/)
+- "image"     → Direct image URL (.jpg, .png, .gif, .webp, .svg)
+- "video"     → Direct video URL (.mp4, .webm, .mov) or Vimeo
+- "link"      → Anything else (articles, blog posts, etc.)
+
+DAY OBJECT SHAPE:
+{
+  "id":           "monday",        // REQUIRED — lowercase, one of: monday tuesday wednesday thursday friday saturday sunday
+  "day":          "Monday",        // REQUIRED — display name (capitalized)
+  "workoutName":  "Push Day",      // REQUIRED — name of this day's workout
+  "type":         "strength",      // REQUIRED — strength | cindy | rest | skill
+  "exercises":    [...],           // REQUIRED — array (empty [] for rest/cindy days)
+  "note":         "optional",      // OPTIONAL — instructions shown on day overview
+  "restNote":     "optional",      // OPTIONAL — for rest days only, recovery instructions
+  "cindy":        { ... },         // REQUIRED for cindy days — AMRAP structure (see below)
+  "durationSeconds": 1200          // OPTIONAL — for cindy days, total AMRAP duration in seconds
+}
+
+EXERCISE OBJECT SHAPE:
+{
+  "id":           "benchpress",    // REQUIRED — stable identifier (no spaces, lowercase). Use the same id across days for the same exercise.
+  "name":         "Bench Press",   // REQUIRED — display name
+  "sets":         4,                // REQUIRED — integer ≥ 1
+  "restSeconds":  120,              // REQUIRED — integer ≥ 0 (90 typical, 60 accessory, 120+ heavy compound)
+  "type":         "strength",      // OPTIONAL — strength | timed | skill (default: strength)
+  "note":         "form cues",    // OPTIONAL — coaching notes shown during workout
+  "mediaLinks":  [                 // OPTIONAL — array of media attachments shown as tappable chips
+    {
+      "type":  "youtube",          // OPTIONAL — youtube | image | video | link (auto-detected if omitted)
+      "label": "Form Tutorial",    // OPTIONAL — chip label (uses type if omitted)
+      "url":   "https://..."       // REQUIRED if mediaLinks entry present
+    }
+  ]
+}
+
+CINDY OBJECT (only for type="cindy" days — defines the AMRAP circuit):
+{
+  "durationSeconds": 1200,         // REQUIRED — countdown duration in seconds (1200 = 20 min, 600 = 10 min, 1800 = 30 min)
+  "scheme": [                      // REQUIRED — array of movements cycled each round
+    {
+      "id":          "pullups",   // REQUIRED — stable identifier
+      "name":        "Pull-ups",   // REQUIRED — display name
+      "reps":        5,             // REQUIRED — reps of this movement per round
+      "mediaLinks": []              // OPTIONAL — same structure as exercise mediaLinks
+    }
+  ]
+}
+
+RULES:
+1. Output must include all 7 days: monday, tuesday, wednesday, thursday, friday, saturday, sunday.
+2. Day "type" must be one of: strength, cindy, rest, skill.
+3. Exercise "type" must be one of: strength, timed, skill (different from day type!).
+4. For cindy days: type="cindy", exercises=[], and include the "cindy" object with durationSeconds and scheme[].
+5. For rest days: type="rest", exercises=[], and optionally a restNote string.
+6. Every exercise must have id, name, sets, restSeconds.
+7. IDs must be stable (no spaces, lowercase). Reuse the same id across days if it's the same exercise (lets history track progression across days).
+8. Output ONLY valid JSON — no markdown fences, no surrounding text, no explanation.
+
+=== FULL EXAMPLE ===
+
+{
+  "format": "tempo-workout-plan",
+  "version": 1,
+  "name": "Push Pull Legs Split",
+  "description": "6-day PPL hypertrophy split with one rest day.",
+  "days": [
+    {
+      "id": "monday", "day": "Monday", "workoutName": "Push Day", "type": "strength",
+      "exercises": [
+        { "id": "benchpress", "name": "Bench Press", "sets": 4, "restSeconds": 120, "type": "strength", "note": "Controlled tempo · 2-sec pause at chest", "mediaLinks": [{ "type": "youtube", "label": "Form", "url": "https://www.youtube.com/watch?v=rT7DgCr-3pg" }] },
+        { "id": "overheadpress", "name": "Overhead Press", "sets": 3, "restSeconds": 90, "type": "strength", "note": "Strict press · no leg drive" },
+        { "id": "inclinepress", "name": "Incline Dumbbell Press", "sets": 3, "restSeconds": 90 }
+      ]
+    },
+    {
+      "id": "tuesday", "day": "Tuesday", "workoutName": "Cindy 20-min AMRAP", "type": "cindy",
+      "exercises": [],
+      "note": "20-minute AMRAP. Track total rounds completed.",
+      "durationSeconds": 1200,
+      "cindy": {
+        "durationSeconds": 1200,
+        "scheme": [
+          { "id": "cindyPullups", "name": "Pull-ups", "reps": 5, "mediaLinks": [] },
+          { "id": "cindyPushups", "name": "Push-ups", "reps": 10, "mediaLinks": [] },
+          { "id": "cindySquats", "name": "Air Squats", "reps": 15, "mediaLinks": [] }
+        ]
+      }
+    },
+    {
+      "id": "wednesday", "day": "Wednesday", "workoutName": "Pull Day", "type": "strength",
+      "exercises": [
+        { "id": "deadlift", "name": "Deadlift", "sets": 3, "restSeconds": 180, "type": "strength", "note": "Hip hinge · controlled eccentric" },
+        { "id": "pullups", "name": "Pull-ups", "sets": 3, "restSeconds": 90 }
+      ]
+    },
+    {
+      "id": "thursday", "day": "Thursday", "workoutName": "Leg Day", "type": "strength",
+      "exercises": [
+        { "id": "squats", "name": "Squats", "sets": 4, "restSeconds": 120 },
+        { "id": "lunges", "name": "Lunges", "sets": 3, "restSeconds": 90 },
+        { "id": "calfraises", "name": "Calf Raises", "sets": 3, "restSeconds": 60 }
+      ]
+    },
+    {
+      "id": "friday", "day": "Friday", "workoutName": "Upper Body", "type": "strength",
+      "exercises": [
+        { "id": "benchpress", "name": "Bench Press", "sets": 3, "restSeconds": 120 },
+        { "id": "barbellrows", "name": "Barbell Rows", "sets": 3, "restSeconds": 90 }
+      ]
+    },
+    {
+      "id": "saturday", "day": "Saturday", "workoutName": "Lower Body", "type": "strength",
+      "exercises": [
+        { "id": "squats", "name": "Squats", "sets": 3, "restSeconds": 120 },
+        { "id": "rdl", "name": "Romanian Deadlift", "sets": 3, "restSeconds": 120 }
+      ]
+    },
+    {
+      "id": "sunday", "day": "Sunday", "workoutName": "Rest", "type": "rest",
+      "exercises": [],
+      "restNote": "Full rest. Recovery is when you actually get stronger."
+    }
+  ]
+}
+
+=== END OF SCHEMA ===
+
+Now wait for me to tell you my goal. Then output ONLY the JSON plan (no markdown, no explanation). Reply with "READY — tell me your goal" to confirm you understand.`;
+
+function copyAiPrompt() {
+  const text = AI_PROMPT_TEMPLATE;
+  // Try clipboard API first
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('✓ Prompt copied — paste into ChatGPT');
+    }).catch(() => {
+      // Fallback: legacy textarea + execCommand
+      fallbackCopy(text);
+    });
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  ta.style.top = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showToast('✓ Prompt copied — paste into ChatGPT');
+  } catch (e) {
+    showToast('Copy failed — open prompt instead', 'warn');
+    // Final fallback: show in modal so user can manually copy
+    showModal(`
+      <div class="modal-title">AI Prompt</div>
+      <div class="modal-text">Copy the text below and paste into ChatGPT / Claude / Gemini:</div>
+      <textarea style="width:100%; height:50vh; background:var(--c-bg-deep); color:var(--c-text); border:0; padding:14px; border-radius:10px; font-family:'JetBrains Mono',monospace; font-size:11px; line-height:1.5;" readonly>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+      <div class="modal-actions">
+        <button class="btn-primary" id="modal-close-prompt">Close</button>
+      </div>
+    `);
+    document.getElementById('modal-close-prompt').addEventListener('click', closeModal);
+  }
+  document.body.removeChild(ta);
+}
+
+function downloadTemplate() {
+  // Export the schema reference template (cleaned of internal comments)
+  const template = JSON.parse(JSON.stringify(DEFAULT_PLAN));
+  downloadJson('plan-template.json', template);
+  showToast('✓ Template downloaded');
+}
+
 function exportAllData() {
   const backup = {
     format: 'tempo-backup',
@@ -4347,16 +4725,48 @@ function validatePlanJson(parsed) {
   if (parsed.format && parsed.format !== 'tempo-workout-plan') return `Wrong format: ${parsed.format}`;
   if (!parsed.days || !Array.isArray(parsed.days)) return 'Missing days array';
   if (parsed.days.length === 0) return 'Days array is empty';
+  // Map legacy day types to current types so older exported plans still import cleanly
+  const TYPE_MAP = {
+    'strength_skill': 'strength',  // legacy: combined strength + skill day
+    'amrap':          'cindy',     // legacy: AMRAP day = Cindy-style
+    'cardio':         'rest',      // legacy
+  };
   for (const day of parsed.days) {
     if (!day.id || !day.day || !day.workoutName) return `Day missing id/day/workoutName`;
+    // Normalize legacy types
+    if (day.type && TYPE_MAP[day.type]) day.type = TYPE_MAP[day.type];
     if (!['strength','cindy','rest','skill'].includes(day.type || 'strength')) return `Day ${day.id} has invalid type`;
     if (day.exercises && !Array.isArray(day.exercises)) return `Day ${day.id} exercises must be an array`;
     if (day.exercises) {
       for (const ex of day.exercises) {
         if (!ex.name) return `Exercise in ${day.id} missing name`;
-        if (typeof ex.sets !== 'number' || ex.sets < 1) return `Exercise "${ex.name}" has invalid sets`;
-        if (typeof ex.restSeconds !== 'number' || ex.restSeconds < 0) return `Exercise "${ex.name}" has invalid restSeconds`;
+        // Cindy-style exercises use targetReps instead of sets — convert to sets=1
+        if (typeof ex.sets !== 'number' || ex.sets < 1) {
+          if (day.type === 'cindy' && typeof ex.targetReps === 'number') {
+            ex.sets = 1;
+          } else if (typeof ex.sets !== 'number' || ex.sets < 1) {
+            return `Exercise "${ex.name}" has invalid sets`;
+          }
+        }
+        if (typeof ex.restSeconds !== 'number' || ex.restSeconds < 0) {
+          // default rest if missing
+          ex.restSeconds = 60;
+        }
       }
+    }
+    // Convert legacy Cindy structure: if Tuesday-style AMRAP has exercises but no cindy.scheme,
+    // build cindy.scheme from the exercises array
+    if (day.type === 'cindy' && !day.cindy && day.exercises && day.exercises.length > 0) {
+      day.cindy = {
+        durationSeconds: day.durationSeconds || 1200,
+        scheme: day.exercises.map(ex => ({
+          id: ex.id,
+          name: ex.name,
+          reps: ex.targetReps || ex.reps || 10,
+          mediaLinks: ex.mediaLinks || [],
+        })),
+      };
+      day.exercises = []; // Cindy days have empty exercises array
     }
   }
   return null;
@@ -4984,6 +5394,8 @@ function init() {
     if (file) importPlanJson(file);
     e.target.value = '';
   });
+  document.getElementById('btn-ask-ai').addEventListener('click', copyAiPrompt);
+  document.getElementById('btn-download-template').addEventListener('click', downloadTemplate);
 
   // Profile
   document.getElementById('btn-edit-name').addEventListener('click', editName);
